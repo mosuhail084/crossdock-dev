@@ -22,7 +22,7 @@ const swaggerOptions = {
       },
       servers: [
           {
-            url: "https://api-qbservice.azurewebsites.net/cms",
+            url: "https://crossdock-dev.vercel.app/api",
             description: "Dev Server"
           },
           {

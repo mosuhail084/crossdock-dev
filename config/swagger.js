@@ -1,6 +1,8 @@
 // Generate Swagger or OpenAPI document
 const swaggerUI = require('swagger-ui-express');
 const swaggerJsDoc = require('swagger-jsdoc');
+const CSS_URL =
+  "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -35,5 +37,5 @@ const swaggerOptions = {
 const specs = swaggerJsDoc(swaggerOptions);
 
 module.exports = function (app) {
-  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(specs));
+  app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(specs, { customCssUrl: CSS_URL }));
 };

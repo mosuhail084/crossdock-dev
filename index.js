@@ -12,6 +12,7 @@ const adminRoute = require('./routes/adminRoute.js');
 const vehicleRoute = require('./routes/vehicleRoutes.js');
 const locationRoute = require('./routes/locationRoutes.js');
 const { authMiddleware } = require('./middleware/authMiddleware.js');
+const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 
 require('./utils/cronScheduler.js');
 

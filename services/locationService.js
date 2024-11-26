@@ -10,10 +10,8 @@ const Location = require('../models/locationModel');
  */
 exports.addLocationService = async (cityName) => {
     try {
-        // Capitalize each word in the city name
         const formattedCityName = capitalizeWords(cityName);
 
-        // Check if the location already exists
         const existingLocation = await Location.findOne({ cityName: formattedCityName });
         if (existingLocation) {
             const error = new Error('Location already exists');
@@ -22,10 +20,22 @@ exports.addLocationService = async (cityName) => {
             throw error;
         }
 
-        // Create and save the new location
         const newLocation = new Location({ cityName: formattedCityName });
         return await newLocation.save();
     } catch (error) {
         throw error;
+    }
+};
+
+/**
+ * Fetch all locations from the database.
+ * @returns {Array} - Array of location objects.
+ * @throws {Error} - Throws an error if there is an issue during the database operation.
+ */
+exports.getAllLocations = async () => {
+    try {
+        return await Location.find({});
+    } catch (error) {
+        throw new Error('Error while fetching locations');
     }
 };

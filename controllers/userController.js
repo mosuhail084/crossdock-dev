@@ -11,123 +11,13 @@ const { convertToISODate, convertMillisecondsToReadableFormat, formatTime } = re
 const orderModel = require('../models/orderModels.js');
 const { scheduleVehicleDeactivation, disableTimer } = require('../utils/cronScheduler.js');
 const { successResponse, errorResponse } = require('../utils/responseUtils.js');
-const { ROLES } = require('../config/constants.js');
-const { createUser } = require('../services/userService.js');
+const { ROLES, KYC_STATUS } = require('../config/constants.js');
+const { createUser, createAdmin } = require('../services/userService.js');
 const { createKycRequest } = require('../services/kycService.js');
+const { uploadToS3, clearS3Directory } = require('../helpers/s3Helper.js');
 
 
 
-exports.signupController = async (req, resp) => {
-  const { name, phone, otp } = req.body;
-  try {
-    if (!name || !phone) {
-      return resp.status(400).send({
-        success: false,
-        message: "Every Field is required",
-      });
-    }
-    const existingUser = await userModel.findOne({ phone });
-    if (existingUser) {
-      return resp.status(401).send({
-        success: false,
-        message: "User already exist",
-        error,
-      });
-    } else {
-      if (otpService.verifyOtp(phone, otp)) {
-        const user = new userModel({ name, phone });
-        await user.save();
-        const token = jwt.sign({ userId: user._id, phone, name: user.name }, process.env.SECRET_KEY);
-        return resp.status(200).json({
-          success: true,
-          message: "OTP Verified",
-          token: token,
-          user: user
-        });
-      } else {
-        return resp.status(400).json({
-          success: false,
-          message: "Invalid OTP",
-        });
-      }
-    }
-  } catch (error) {
-    return resp.status(500).send({
-      success: false,
-      message: "User not Created",
-      error,
-    });
-  }
-};
-
-exports.sendOtp = (req, resp) => {
-  const { phone } = req.body;
-  try {
-    if (!phone) {
-      return resp.status(400).send({
-        success: false,
-        message: "Phone no. Field is required",
-      });
-    } else {
-      const otp = "123456"
-      otpService.saveOTP(phone, otp);
-      otpService.sendSMS(phone, otp);
-      return resp.status(200).json({
-        success: true,
-        otp,
-      });
-    }
-  } catch (error) {
-    return resp.status(500).send({
-      success: false,
-      message: "User not Created",
-      error,
-    });
-  }
-};
-
-exports.loginController = async (req, resp) => {
-  const { phone, otp } = req.body;
-  try {
-    if (!phone) {
-      return resp.status(400).send({
-        success: false,
-        message: "Phone no. is required",
-      });
-    }
-    const userExist = await userModel.findOne({ phone });
-    if (!userExist) {
-      return resp.status(200).send({
-        message: "User Not exist",
-        success: false,
-      });
-    } else {
-      otpService
-        .verifyOtp(phone, otp)
-        .then((otp) => {
-          if (!otp) {
-            return resp.status(400).json({ message: "Invalid OTP" });
-          }
-          return userModel.findOne({ phone });
-        })
-        .then((user) => {
-          if (!user) {
-            return resp.status(400).json({ message: "User not found" });
-          }
-
-          const token = jwt.sign({ userId: userExist._id, phone, name: userExist.name }, process.env.SECRET_KEY);
-          resp.json({ message: "Login successful", token, user });
-        })
-        .catch((error) => resp.status(500).json({ error: error.message }));
-    }
-  } catch (error) {
-    return resp.status(500).send({
-      success: false,
-      message: "User not Created",
-      error,
-    });
-  }
-};
 
 exports.rentVehicles = async (req, res) => {
   const userId = req.decoded.userId;
@@ -728,7 +618,6 @@ exports.approvedVehicle = async (req, res) => {
 exports.addDriver = async (req, res) => {
   try {
     const { name, phone, locationId, vehicleId } = req.body;
-    const { files } = req.body;
 
     const driver = await createUser({
       name,
@@ -737,19 +626,40 @@ exports.addDriver = async (req, res) => {
       locationID: locationId,
     });
 
+    const uploadedFiles = {};
+
+    for (let file of req.files) {
+      const uploadResult = await uploadToS3(file, phone);
+      uploadedFiles[file.fieldname] = uploadResult;
+    }
+
     const kycRequest = await createKycRequest({
       userID: driver._id,
-      uploadedDocuments: {
-        userPhoto: files.userPhoto,
-        aadharCard: files.aadharCard,
-        panCard: files.panCard,
-        driversLicense: files.driversLicense,
-      },
+      uploadedDocuments: uploadedFiles,
+      status: KYC_STATUS.APPROVED,
     });
 
     return res.status(201).json(successResponse({ driver, kycRequest }, 'Driver added successfully.'));
   } catch (error) {
     console.error('Error adding driver:', error);
     return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to add driver.'));
+  }
+};
+
+/**
+ * Controller to add a new Admin.
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ */
+exports.addAdmin = async (req, res) => {
+  try {
+    const { email, password, name, locationId } = req.body;
+
+    const newAdmin = await createAdmin({ email, password, name, locationId });
+
+    return res.status(201).json(successResponse('Admin added successfully', { user: newAdmin }));
+  } catch (error) {
+    console.error('Error adding driver:', error);
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to add Admin'));
   }
 };

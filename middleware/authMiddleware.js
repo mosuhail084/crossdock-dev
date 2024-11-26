@@ -22,7 +22,7 @@ exports.authMiddleware = (req, res, next) => {
     return res.status(401).json(errorResponse('Token must be prefixed with "Bearer"'));
   }
 
-  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       return res.status(403).json(errorResponse('Invalid or expired token'));
     }

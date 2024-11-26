@@ -1,7 +1,8 @@
 const express = require('express');
 const validateRequest = require('../middleware/validateRequest');
 const { addLocationSchema } = require('../validations/locationValidations');
-const { addLocation } = require('../controllers/locationController');
+const { addLocation, getLocations } = require('../controllers/locationController');
+const { checkPermission } = require('../middleware/checkPermission');
 
 const router = express.Router();
 
@@ -52,6 +53,46 @@ const router = express.Router();
  *               success: false
  *               message: "Internal server error"
  */
-router.post('/add-location', validateRequest(addLocationSchema), addLocation);
+router.post('/add-location', checkPermission('ADD_LOCATION'), validateRequest(addLocationSchema), addLocation);
+
+/**
+ * @swagger
+ * /v1/location/get-locations:
+ *   get:
+ *     summary: Retrieve all locations.
+ *     description: Fetch all locations stored in the system.
+ *     tags:
+ *       - Location
+ *     responses:
+ *       '200':
+ *         description: A list of locations.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Locations retrieved successfully."
+ *               data:
+ *                 - _id: "64fa3a17dabc1f00012345ef"
+ *                   name: "Location A"
+ *                   coordinates: { lat: 28.7041, lng: 77.1025 }
+ *                 - _id: "64fa3a17dabc1f00012345gh"
+ *                   name: "Location B"
+ *                   coordinates: { lat: 19.0760, lng: 72.8777 }
+ *       '404':
+ *         description: No locations found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No locations found."
+ *       '500':
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/get-locations', checkPermission('GET_ALL_LOCATIONS'), getLocations);
 
 module.exports = router;

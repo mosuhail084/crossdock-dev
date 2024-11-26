@@ -1,0 +1,94 @@
+const { KYC_STATUS } = require('../config/constants');
+const { uploadToS3, clearS3Directory } = require('../helpers/s3Helper');
+const { createKycRequest, updateKycStatus, getKycStatusByUserID, fetchAllKycRequests } = require('../services/kycService');
+const { successResponse, errorResponse } = require('../utils/responseUtils');
+
+
+/**
+ * Submits a new KYC request for a user.
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @returns {Promise<Object>} - Created KYC request.
+ */
+exports.submitKycRequest = async (req, res) => {
+    try {
+        const userID = req.user.userId;
+        const userPhone = req.user.phone;
+
+        const uploadedFiles = {};
+
+        await clearS3Directory(userPhone);
+
+        for (let file of req.files) {
+            const uploadResult = await uploadToS3(file, userPhone);
+            uploadedFiles[file.fieldname] = uploadResult;
+        }
+        const kycRequest = await createKycRequest({
+            userID,
+            uploadedDocuments: uploadedFiles,
+            status: KYC_STATUS.PENDING,
+        });
+
+        return res.status(201).json(successResponse('KYC request submitted successfully.', kycRequest));
+    } catch (error) {
+        console.error('Error submitting KYC request:', error);
+        return res.status(500).json(errorResponse('Failed to submit KYC request.', error.message));
+    }
+};
+
+
+/**
+ * Retrieves all KYC requests with optional filters and pagination.
+ * @param {Object} req - Express request object containing query parameters for filtering, sorting, and pagination.
+ * @param {Object} res - Express response object used to send the list of KYC requests or an error message.
+ * @returns {Promise<Object>} - Returns a JSON response with the list of KYC requests or an error.
+ */
+exports.getAllKycRequests = async (req, res) => {
+    try {
+        const kycRequests = await fetchAllKycRequests(req.query);
+        return res.status(200).json(successResponse({ kycRequests }, 'KYC requests retrieved successfully.'));
+    } catch (error) {
+        return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to fetch kyc requests.'));
+    }
+};
+
+
+/**
+ * Retrieves the current status of a user's KYC request.
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object used to send the status of the user's KYC request or an error message.
+ * @returns {Promise<Object>} - Returns a JSON response with the status of the user's KYC request or an error.
+ */
+exports.checkKycStatus = async (req, res) => {
+    try {
+        const userID = req.user.userId;
+
+        const kycRequest = await getKycStatusByUserID(userID);
+
+        return res.status(200).json(successResponse({
+            userID,
+            status: kycRequest ? kycRequest.status : 'not found',
+        }, 'KYC status retrieved successfully.'));
+
+    } catch (error) {
+        return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to check status.'));
+    }
+};
+
+
+/**
+ * Updates the status of a KYC request to either "approved" or "rejected".
+ * @param {Object} req - Express request object containing the ID of the KYC request and the new status.
+ * @param {Object} res - Express response object used to send the status of the KYC request or an error message.
+ * @returns {Promise<Object>} - Returns a JSON response with the status of the KYC request or an error.
+ */
+exports.approveOrRejectKyc = async (req, res) => {
+    try {
+        const { kycId, status } = req.body;
+        const updatedKyc = await updateKycStatus(kycId, status);
+
+        return res.status(200).json(successResponse( updatedKyc, 'KYC status updated successfully.'));
+    } catch (error) {
+        return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to update KYC status.'));
+    }
+};

@@ -1,7 +1,6 @@
 const express =require('express');
 const { loginController, createVehicle, changePassword, dashboard, usersPayments, getKycDocuments, kycApproval,  vehicleAllocation, vehicleDeallocation, spareAllocation, getRentalRequests, getSpareRequests, deleteUser, userEdit, userInfo, getKycRequests, inactiveVehicles, disableUser, enableUser, addUser, disableVehicle, enableVehicle, getAdminStats, forgotPassword, usersPaymentHistory, getActiveVehicleByType } = require('../controllers/adminController.js');
 const { uploadFields } = require('../middleware/multer');
-const { sendOtp } = require("../controllers/userController");
 const { searchVehicles, searchRentRequests, searchSpareRequests, searchKYCRequests, filterVehicles, filterRent, filterSpare, filterKYC, searchUsers, filterUsers, filterPaymentsbySpare, searchPayments, filterPaymentsbyDate } = require('../controllers/searchFunctions.js');
 const {  downloadVehicles, downloadRent, downloadSpare, downloadKYC, downloadUsers, downloadPayments } = require('../controllers/downloadFunctions.js');
 const router=express.Router();
@@ -29,7 +28,6 @@ router.post('/add-user', uploadFields,addUser);
 router.post('/createVehicle', createVehicle);
 router.post('/disable-vehicle', disableVehicle);
 router.post('/enable-vehicle', enableVehicle);
-router.post("/send-otp", sendOtp);
 router.get('/dashboard/:token',dashboard)
 router.get('/stats/:token', getAdminStats);
 router.get('/search/vehicles', searchVehicles);

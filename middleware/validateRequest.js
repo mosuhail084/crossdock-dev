@@ -4,11 +4,19 @@
  * @returns {function} - Express middleware.
  */
 const validateRequest = (schema) => (req, res, next) => {
-    const { error } = schema.validate(req.body);
+    const { error } = schema.validate(
+        {
+            body: req.body,
+            query: req.query,
+            files: req.files
+        },
+        { abortEarly: false }
+    );
+
     if (error) {
         return res.status(400).json({
             success: false,
-            message: error.details[0].message,
+            message: error.details.map((detail) => detail.message).join(', '),
         });
     }
 

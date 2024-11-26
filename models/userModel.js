@@ -1,21 +1,26 @@
 const mongoose = require('mongoose');
 const { ROLES } = require('../config/constants');
 const Schema = mongoose.Schema;
+const bcrypt = require('bcrypt');
 
 /**
  * User Schema
  */
 const userSchema = new Schema({
     name: { type: String, required: false },
-    email: { type: String, unique: true, sparse: true },
-    phone: { type: String, unique: true, sparse: true },
+    email: { type: String, sparse: true },
+    phone: { type: String, sparse: true },
     password: { type: String },
     role: { type: String, enum: Object.values(ROLES), required: true },
     locationID: { type: Schema.Types.ObjectId, ref: 'Location' },
     otp: { type: Number },
     otpExpiry: { type: Date },
-}, { timestamps: true, versionKey: false});
+    isActive: { type: Boolean, default: false },
+}, { timestamps: true, versionKey: false });
 
+userSchema.index({ phone: 1 }, { unique: true, partialFilterExpression: { phone: { $exists: true, $ne: null } } });
+
+userSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } });
 
 userSchema.pre('save', function (next) {
     if (this.role === ROLES.DRIVER && !this.phone) {

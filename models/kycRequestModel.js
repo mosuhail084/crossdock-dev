@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { KYC_STATUS } = require('../config/constants');
 const Schema = mongoose.Schema;
 
 /**
@@ -8,8 +9,8 @@ const kycRequestSchema = new Schema({
     userID: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: { 
         type: String, 
-        enum: ['pending', 'approved', 'rejected'], 
-        default: 'pending' 
+        enum: Object.values(KYC_STATUS), 
+        default: KYC_STATUS.PENDING,
     },
     uploadedDocuments: {
         userPhoto: { type: String, required: true },

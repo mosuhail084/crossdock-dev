@@ -2,6 +2,7 @@ const express = require('express');
 const { addVehicle } = require('../controllers/vehicleController');
 const validateRequest = require('../middleware/validateRequest.js');
 const { addVehicleSchema } = require('../validations/vehicleValidations');
+const { checkPermission } = require('../middleware/checkPermission.js');
 
 const router = express.Router();
 
@@ -75,6 +76,6 @@ const router = express.Router();
  *               success: false
  *               message: "Internal server error"
  */
-router.post('/add', validateRequest(addVehicleSchema), addVehicle);
+router.post('/add', checkPermission('ADD_VEHICLE'), validateRequest(addVehicleSchema), addVehicle);
 
 module.exports = router;

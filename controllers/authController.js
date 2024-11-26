@@ -30,7 +30,6 @@ exports.signupDriver = async (req, res) => {
     const { phone, name, otp } = req.body;
 
     try {
-        // Verify the OTP
         const isOtpValid = await otpService.verifyOtp(phone, otp);
         if (!isOtpValid) {
             return res.status(400).json(errorResponse('Invalid OTP'));

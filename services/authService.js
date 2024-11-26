@@ -17,15 +17,23 @@ const findUserByPhone = async (phone) => {
  * Register a new driver or update the existing driver's name.
  * @param {object} data - The driver data (phone, name).
  * @returns {Promise<object>} - Returns the created/updated user and JWT token.
+ * @throws {Error} - Throws an error if the driver is already active with the given phone number.
  */
 exports.registerDriver = async ({ phone, name }) => {
     let user = await findUserByPhone(phone);
 
     if (user) {
+        if (user.isActive) {
+            const error = new Error('A user with this phone number is already active');
+            error.statusCode = 409;
+            throw error;
+        }
+
         user.name = name;
+        user.isActive = true;
         await user.save();
     } else {
-        user = new User({ phone, name, role: ROLES.DRIVER });
+        user = new User({ phone, name, role: ROLES.DRIVER, isActive: true });
         await user.save();
     }
 
@@ -40,10 +48,10 @@ exports.registerDriver = async ({ phone, name }) => {
  * @returns {Promise<{ user: object, token: string }>} - User object and JWT token.
  */
 exports.loginDriverService = async (phone, otp) => {
-    const user = await User.findOne({ phone, role: ROLES.DRIVER });
+    const user = await User.findOne({ phone, role: ROLES.DRIVER, isActive: true });
 
     if (!user) {
-        const error = new Error('Driver not found');
+        const error = new Error('User not found or Inactive');
         error.statusCode = 404;
         throw error;
     }

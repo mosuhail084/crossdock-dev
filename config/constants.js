@@ -18,8 +18,15 @@ const VEHICLE_STATUSES = {
     SPARE: 'spare',
 };
 
+const KYC_STATUS = {
+    PENDING: 'pending',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+};
+
 module.exports = {
-    ROLES, 
+    ROLES,
     VEHICLE_TYPES,
-    VEHICLE_STATUSES
+    VEHICLE_STATUSES,
+    KYC_STATUS
 };

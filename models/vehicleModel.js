@@ -6,27 +6,27 @@ const { VEHICLE_TYPES, VEHICLE_STATUSES } = require('../config/constants');
  */
 const vehicleSchema = new mongoose.Schema(
     {
-        vehicleType: { 
-            type: String, 
-            required: true, 
+        vehicleType: {
+            type: String,
+            required: true,
             enum: Object.values(VEHICLE_TYPES),
         },
-        vehicleNumber: { 
-            type: String, 
-            unique: true, 
-            required: true 
+        vehicleNumber: {
+            type: String,
+            unique: true,
+            required: true
         },
-        rentalValue: { 
-            type: Number, 
-            required: true 
+        rentalValue: {
+            type: Number,
+            required: true
         },
-        locationID: { 
-            type: mongoose.Schema.Types.ObjectId, 
-            ref: 'Location', 
-            required: true 
+        locationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Location',
+            required: true
         },
-        status: { 
-            type: String, 
+        status: {
+            type: String,
             enum: Object.values(VEHICLE_STATUSES),
             default: VEHICLE_STATUSES.INACTIVE,
         },

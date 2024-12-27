@@ -1,5 +1,5 @@
 const express = require('express');
-const { submitKycRequest, checkKycStatus, approveOrRejectKyc, getAllKycRequests } = require('../controllers/kycController');
+const { submitKycRequest, checkKycStatus, approveOrRejectKyc, getAllKycRequests, getUserKycDocuments } = require('../controllers/kycController');
 const { checkPermission } = require('../middleware/checkPermission');
 const { changeKycStatusSchema, getAllKycRequestsSchema, kycSchema } = require('../validations/kycValidations');
 const validateRequest = require('../middleware/validateRequest');
@@ -57,6 +57,11 @@ router.post('/upload', checkPermission('SUBMIT_KYC'), validateRequest(kycSchema)
  *           enum: [pending, approved, rejected]
  *         description: Filter KYC requests by status (pending, approved, or rejected).
  *       - in: query
+ *         name: locationId
+ *         schema:
+ *           type: string
+ *         description: Filter KYC requests by the associated location ID.
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -83,7 +88,7 @@ router.post('/upload', checkPermission('SUBMIT_KYC'), validateRequest(kycSchema)
  *                 limit: 10
  *                 kycs:
  *                   - _id: "64fa3a17dabc1f00012345ef"
- *                     userID: "64fa3a17dabc1f00012345aa"
+ *                     userId: "64fa3a17dabc1f00012345aa"
  *                     status: "pending"
  *                     uploadedDocuments:
  *                       userPhoto: "https://s3.amazonaws.com/uploads/photo.jpg"
@@ -132,7 +137,7 @@ router.get('/get-requests', checkPermission('GET_ALL_KYC_REQUESTS'), validateReq
  *               success: true
  *               message: "KYC status retrieved successfully."
  *               data:
- *                 userID: "64fa3a17dabc1f00012345ef"
+ *                 userId: "64fa3a17dabc1f00012345ef"
  *                 status: "pending"
  *       '404':
  *         description: KYC status not found.
@@ -154,7 +159,7 @@ router.get('/status', checkPermission('CHECK_KYC'), checkKycStatus);
 /**
  * @swagger
  * /v1/kyc/update-status:
- *   patch:
+ *   post:
  *     summary: Approve or reject a KYC request.
  *     description: Allows an admin or super admin to update the status of a KYC request to "approved" or "rejected".
  *     tags:
@@ -187,7 +192,7 @@ router.get('/status', checkPermission('CHECK_KYC'), checkKycStatus);
  *               message: "KYC request approved successfully."
  *               data:
  *                 _id: "64fa3a17dabc1f00012345ef"
- *                 userID: "64fa3a17dabc1f00012345gh"
+ *                 userId: "64fa3a17dabc1f00012345gh"
  *                 status: "approved"
  *       '404':
  *         description: KYC request not found.
@@ -212,5 +217,58 @@ router.get('/status', checkPermission('CHECK_KYC'), checkKycStatus);
  *               message: "Internal server error."
  */
 router.post('/update-status', checkPermission('MANAGE_KYC'), validateRequest(changeKycStatusSchema), approveOrRejectKyc);
+
+/**
+ * @swagger
+ * /v1/kyc/kyc-docs/{userId}:
+ *   get:
+ *     summary: Get KYC documents for a specific user.
+ *     description: Allows an admin or super admin to retrieve the KYC documents (e.g., PAN card, Aadhar card, etc.) for a specific user.
+ *     tags:
+ *       - KYC
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: The ID of the user whose KYC documents are to be fetched.
+ *         schema:
+ *           type: string
+ *           example: "64fa3a17dabc1f00012345gh"
+ *     responses:
+ *       '200':
+ *         description: KYC documents retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "KYC documents retrieved successfully."
+ *               data:
+ *                 userPhoto: "path/to/photo.jpg"
+ *                 panCard: "path/to/pan.jpg"
+ *                 aadharCard: "path/to/aadhar.jpg"
+ *                 driversLicense: "path/to/license.jpg"
+ *       '404':
+ *         description: No KYC documents found for the given user.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No KYC documents found for this user."
+ *       '400':
+ *         description: Invalid userId format.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid userId format. Must be a valid MongoDB ObjectId."
+ *       '500':
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/kyc-docs/:userId', checkPermission('GET_KYC_DOCS'), getUserKycDocuments);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const { s3Client } = require("../utils/s3");
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 /**
  * Deletes all objects in a directory (prefix) in S3.
@@ -58,7 +59,26 @@ const uploadToS3 = async (file, userPhone) => {
     return params.Key;
 };
 
+/**
+ * Generates a signed URL for an S3 object.
+ * @param {string} key - The S3 object key.
+ * @returns {Promise<string>} - The signed URL.
+ */
+const generateSignedUrl = async (key) => {
+    try {
+        const command = new GetObjectCommand({
+            Bucket: process.env.BUCKET_NAME,
+            Key: key,
+        });
+        return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    } catch (error) {
+        console.error('Error generating signed URL:', error);
+        return null;
+    }
+};
+
 module.exports = {
     uploadToS3,
-    clearS3Directory
+    clearS3Directory,
+    generateSignedUrl
 };

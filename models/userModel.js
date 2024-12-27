@@ -12,7 +12,7 @@ const userSchema = new Schema({
     phone: { type: String, sparse: true },
     password: { type: String },
     role: { type: String, enum: Object.values(ROLES), required: true },
-    locationID: { type: Schema.Types.ObjectId, ref: 'Location' },
+    locationId: { type: Schema.Types.ObjectId, ref: 'Location' },
     otp: { type: Number },
     otpExpiry: { type: Date },
     isActive: { type: Boolean, default: false },

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requestOtp, signupDriver, loginDriver, loginAdmin} = require('../controllers/authController');
+const { requestOtp, signupDriver, loginDriver, loginAdmin, requestOtpforadmin, forgotPasswordforadmin } = require('../controllers/authController');
 const validatePhone = require('../middleware/validatePhone');
 const validateRequest = require('../middleware/validateRequest');
-const { loginDriverSchema, signupDriverSchema, requestOtpSchema, loginAdminSchema } = require('../validations/authValidations');
+const { loginDriverSchema, signupDriverSchema, requestOtpSchema, loginAdminSchema, updatePasswordSchema, verifyOtpSchema } = require('../validations/authValidations');
 
 
 /**
@@ -80,8 +80,8 @@ router.post('/request-otp', validateRequest(requestOtpSchema), requestOtp);
  *                 description: One-Time Password for verification.
  *             example:
  *               name: "John Doe"
- *               phone: "919876543210"
- *               otp: "123456"
+ *               phone: 919876543210
+ *               otp: 123456
  *     responses:
  *       '200':
  *         description: Driver registered successfully.
@@ -308,5 +308,116 @@ router.post('/login-driver', validateRequest(loginDriverSchema), loginDriver);
  *                   example: "Internal server error"
  */
 router.post('/login-admin', validateRequest(loginAdminSchema), loginAdmin);
+
+/**
+ * @swagger
+ * /v1/forgotPasswordForAdmin:
+ *   post:
+ *     summary: Forgot password for Admin.
+ *     description: Allows an admin to reset their password by verifying the OTP sent to their phone number.
+ *     tags:
+ *       - Authentication
+ *       - Admin
+ *       - Web App
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: The phone number of the admin to send the OTP.
+ *             example:
+ *               phone: "1234567890"
+ *     responses:
+ *       '200':
+ *         description: OTP sent successfully to the admin phone number.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "OTP sent successfully"
+ *               data: null
+ *       '400':
+ *         description: Invalid phone number or missing parameters.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid phone number"
+ *       '500':
+ *         description: Internal Server Error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Failed to send OTP"
+ */
+router.post('/getOtpForAdmin', validateRequest(requestOtpSchema), requestOtpforadmin);
+
+/**
+ * @swagger
+ * /v1/forgotPasswordForAdmin:
+ *   post:
+ *     summary: Forgot password for Admin.
+ *     description: Allows an admin to reset their password after verifying the OTP. The new password will be validated before updating.
+ *     tags:
+ *       - Authentication
+ *       - Admin
+ *       - Web App
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: The phone number of the admin.
+ *               otp:
+ *                 type: string
+ *                 description: The OTP sent to the admin for verification.
+ *               password:
+ *                 type: string
+ *                 description: The new password for the admin account.
+ *             example:
+ *               phone: "1234567890"
+ *               otp: "123456"
+ *               password: "NewPassword@123"
+ *     responses:
+ *       '200':
+ *         description: Password reset successfully after OTP verification.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Password reset successfully"
+ *               data: null
+ *       '400':
+ *         description: Invalid input, missing parameters, or OTP verification failed.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid OTP, email, or password format"
+ *       '404':
+ *         description: User not found or OTP expired.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "User not found or OTP expired"
+ *       '500':
+ *         description: Internal Server Error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Failed to reset password"
+ */
+router.post('/forgotPasswordForAdmin', validateRequest(updatePasswordSchema), forgotPasswordforadmin)
 
 module.exports = router;

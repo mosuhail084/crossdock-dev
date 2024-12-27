@@ -2,7 +2,8 @@ const { ROLES } = require('../config/constants');
 const User = require('../models/userModel');
 const { createError } = require('../utils/errorUtils');
 const { generateJwtToken } = require('../utils/jwtUtils');
-const { verifyOtp } = require('./otpService');
+const { verifyOtp, verifyOtpforadmin } = require('./otpService');
+const bcrypt = require('bcrypt');
 
 /**
  * Find a user by phone number.
@@ -76,7 +77,6 @@ exports.loginDriverService = async (phone, otp) => {
  */
 exports.loginAdminService = async (email, password) => {
     const user = await User.findOne({ email });
-
     if (!user) {
         createError('User not found', 404);
     }
@@ -92,4 +92,49 @@ exports.loginAdminService = async (email, password) => {
     const token = generateJwtToken(user);
 
     return { user, token };
+};
+
+/**
+ * Service for handling password reset for Admin and SuperAdmin.
+ * This function verifies the OTP, checks its validity and expiration, and updates the user's password in the database.
+ * 
+ * @param {string} phone - The phone number of the admin or superadmin.
+ * @param {string} password - The new password that the admin wants to set.
+ * @param {string} otp - The OTP provided by the user for verification.
+ * @throws {Error} - Throws an error if the OTP is invalid, expired, or if the user is not found.
+ * @returns {Promise<void>} - Returns nothing if the password is successfully updated.
+ */
+exports.forgotPasswordforadmin = async (phone, password, otp) => {
+    try {
+        const isOtpValid = await verifyOtpforadmin(phone, otp);
+        
+        if (!isOtpValid) {
+            throw new Error("Invalid OTP.");
+        }
+        const user = await User.findOne({ phone, role: { $in: [ROLES.ADMIN, ROLES.SUPER_ADMIN] } });
+        if (!user) {
+            throw new Error("User not found or incorrect credentials.");
+        }
+        const isOtp = user.otp == otp;
+        const isOtpExpired = new Date() > user.otpExpiry;
+        if (!isOtp) {
+            throw new Error("Invalid OTP");
+        }
+
+        if (isOtpExpired) {
+            throw new Error("OTP has expired");
+        }
+
+        if (!user) {
+            throw new Error("User not found.");
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        user.password = hashedPassword;
+        user.otp = undefined;
+        user.otpExpiry = undefined;
+        await user.save();
+    } catch (error) {
+        throw new Error("Error updating password: " + error.message);
+    }
 };

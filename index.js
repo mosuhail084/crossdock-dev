@@ -12,6 +12,7 @@ const authRoute = require('./routes/authRoutes.js');
 const vehicleRoute = require('./routes/vehicleRoutes.js');
 const locationRoute = require('./routes/locationRoutes.js');
 const kycRoute = require('./routes/kycRoutes.js');
+const paymentRoute = require('./routes/paymentRoutes.js');
 
 const { authMiddleware } = require('./middleware/authMiddleware.js');
 
@@ -44,6 +45,8 @@ app.use('/api/v1/user', authMiddleware, userRoute);
 app.use('/api/v1/location', authMiddleware, locationRoute);
 app.use('/api/v1/vehicle', authMiddleware, vehicleRoute);
 app.use('/api/v1/kyc', authMiddleware, kycRoute);
+app.use('/api/v1/payment', authMiddleware, );
+
 
 
 // app.use('/api/v1/user',userRoute);

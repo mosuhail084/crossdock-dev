@@ -1,4 +1,7 @@
+const { KYC_STATUS } = require('../config/constants.js');
+const { generateSignedUrl } = require('../helpers/s3Helper.js');
 const KycRequest = require('../models/kycRequestModel.js');
+const Location = require('../models/locationModel.js');
 
 /**
  * Create a new KYC request.
@@ -16,37 +19,77 @@ exports.createKycRequest = async (kycData) => {
  * @param {Object} queryParams - Query parameters for filtering, sorting, and pagination
  * @returns {Promise<Array>} - Array of KYC requests
  */
-exports.fetchAllKycRequests = async (queryParams) => {
-    const { status, page = 1, limit = 10 } = queryParams;
+exports.fetchAllKycRequests = async (queryParams, userLocation) => {
+    const { status, locationId, page = 1, limit = 10 } = queryParams;
 
-    const filters = {};
-    if (status) filters.status = status;
+    if (!userLocation) {
+        const bangaloreLocation = await Location.findOne({ cityName: 'Bangalore' });
+        if (!bangaloreLocation) {
+            throw new Error('Bangalore location not found.');
+        }
+        userLocation = bangaloreLocation._id;
+    }
 
-    const options = {
-        skip: (page - 1) * limit,
-        limit: parseInt(limit, 10),
-        sort: { createdAt: -1 },
-    };
+    const query = { locationId: locationId || userLocation, status: status || KYC_STATUS.PENDING };
 
-    return await KycRequest.find(filters, null, options).populate('userID', 'name email phone');
+    const kycRequests = await KycRequest.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit, 10))
+        .populate('userId', 'name email phone');
+
+    for (const kycRequest of kycRequests) {
+        if (kycRequest.uploadedDocuments) {
+            for (const [key, s3Key] of Object.entries(kycRequest.uploadedDocuments)) {
+                kycRequest.uploadedDocuments[key] = s3Key
+                    ? await generateSignedUrl(s3Key)
+                    : null;
+            }
+        }
+    }
+
+    return kycRequests;
+};
+
+/**
+ * Service to fetch KYC documents for a given user ID
+ */
+exports.getKycDocumentsByUserId = async (userId) => {
+    try {
+        const kycRequest = await KycRequest.findOne({userId:userId})
+            .select('uploadedDocuments status dateRequested') 
+            .populate('userId', 'name email')
+            .lean();
+
+        if (!kycRequest) {
+            return null;
+        }
+        return kycRequest.uploadedDocuments;
+    } catch (error) {
+        console.error('Error fetching KYC documents from DB:', error);
+        throw error;
+    }
 };
 
 /**
  * Fetch the KYC status for a given user ID.
- * @param {string} userID - The ID of the user whose KYC status is to be fetched.
+ * @param {string} userId - The ID of the user whose KYC status is to be fetched.
  * @returns {Object|null} - Returns the KYC request object if found, otherwise null.
  * @throws {Error} - Throws an error if there is an issue during the database operation.
  */
-exports.getKycStatusByUserID = async (userID) => {
+exports.getKycStatusByUserID = async (userId) => {
     try {
-        return await KycRequest.findOne({ userID });
+        return await KycRequest.findOne({ userId });
     } catch (error) {
         throw new Error('Error while fetching KYC status');
     }
 }
 
 /**
- * Updates the status of a KYC request.
+ * Updates the KYC status.
+ * @param {string} kycId - The ID of the KYC request.
+ * @param {string} status - The new status to update ("approved" or "rejected").
+ * @returns {Promise<Object>} - Updated KYC request.
  */
 exports.updateKycStatus = async (kycRequestId, status) => {
     return await KycRequest.findByIdAndUpdate(

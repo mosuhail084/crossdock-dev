@@ -39,6 +39,13 @@ const getAllKycRequestsSchema = Joi.object({
                 'any.only': 'Status must be one of: "pending", "approved", or "rejected".',
             })
             .description('Filter KYC requests by status (pending, approved, or rejected).'),
+        locationId: Joi.string()
+            .regex(/^[0-9a-fA-F]{24}$/)
+            .optional()
+            .messages({
+            'string.pattern.base': 'Invalid Location ID format',
+            })
+            .description('Filter KYC requests by location ID'),
         page: Joi.number()
             .integer()
             .min(1)

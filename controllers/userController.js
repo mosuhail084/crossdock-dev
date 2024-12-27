@@ -1,18 +1,16 @@
 const dotenv = require('dotenv')
 dotenv.config()
-const jwt = require('jsonwebtoken');
-const otpService = require("../utils/otpUtils.js");
 const { createOrder } = require("../utils/cashfree");
 const userModel = require('../models/userModel');
 const vehicleModel = require('../models/vehicleModel.js');
 const { s3Client } = require('../utils/s3.js');
-const { GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { convertToISODate, convertMillisecondsToReadableFormat, formatTime } = require('../utils/helpers.js');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { convertToISODate, formatTime } = require('../utils/helpers.js');
 const orderModel = require('../models/orderModels.js');
 const { scheduleVehicleDeactivation, disableTimer } = require('../utils/cronScheduler.js');
 const { successResponse, errorResponse } = require('../utils/responseUtils.js');
 const { ROLES, KYC_STATUS } = require('../config/constants.js');
-const { createUser, createAdmin } = require('../services/userService.js');
+const { createUser, createAdmin, updatePasswordforadmin, getDashboardStats, switchUserStatusService, fetchAllDriversService, getPaymentHistoryService, getAllocatedVehiclesService, exportAllDataService } = require('../services/userService.js');
 const { createKycRequest } = require('../services/kycService.js');
 const { uploadToS3, clearS3Directory } = require('../helpers/s3Helper.js');
 
@@ -417,7 +415,20 @@ exports.getPaymentHistory = async (req, resp) => {
   }
 }
 
-
+/**
+ * Fetch payment history for a driver.
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+exports.getDriverPaymentHistory = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const payments = await getPaymentHistoryService(id);
+    return res.status(200).json(successResponse(payments, 'Payment history fetched successfully.'));
+  } catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+};
 
 
 exports.getVehicle = async (req, res) => {
@@ -623,7 +634,7 @@ exports.addDriver = async (req, res) => {
       name,
       phone,
       role: ROLES.DRIVER,
-      locationID: locationId,
+      locationId: locationId,
     });
 
     const uploadedFiles = {};
@@ -634,7 +645,7 @@ exports.addDriver = async (req, res) => {
     }
 
     const kycRequest = await createKycRequest({
-      userID: driver._id,
+      userId: driver._id,
       uploadedDocuments: uploadedFiles,
       status: KYC_STATUS.APPROVED,
     });
@@ -653,9 +664,9 @@ exports.addDriver = async (req, res) => {
  */
 exports.addAdmin = async (req, res) => {
   try {
-    const { email, password, name, locationId } = req.body;
+    const { email, password, name, locationId, phone } = req.body;
 
-    const newAdmin = await createAdmin({ email, password, name, locationId });
+    const newAdmin = await createAdmin({ email, password, name, locationId, phone });
 
     return res.status(201).json(successResponse('Admin added successfully', { user: newAdmin }));
   } catch (error) {
@@ -663,3 +674,114 @@ exports.addAdmin = async (req, res) => {
     return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to add Admin'));
   }
 };
+
+/**
+ * Admin password update controller.
+ * Allows the admin to update their password by providing the old password, new password, and confirmation password.
+ * 
+ * @param {Object} req - Express request object containing old password, new password, and confirm password.
+ * @param {Object} res - Express response object for sending the response.
+ */
+exports.updatePasswordforadmin = async (req, res) => {
+  try {
+    const { oldPassword, password } = req.body;
+    const adminId = req.user.userId;
+    const updatedAdmin = await updatePasswordforadmin(adminId, oldPassword, password);
+
+    return res.status(200).json(successResponse(updatedAdmin, 'Password updated successfully.'));
+  } catch (error) {
+    return res.status(error.statusCode || 500).json(errorResponse(error.message || 'Failed to update password.'));
+  }
+};
+
+/**
+ * Retrieves the dashboard statistics.
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @returns {Promise<Object>} - The dashboard statistics or error response.
+ */
+exports.getDashboardData = async (req, res) => {
+  try {
+    const stats = await getDashboardStats(req.query, req.user.locationId);
+    return res.status(200).json(successResponse(stats, 'Dashboard statistics retrieved successfully.'));
+  } catch (error) {
+    console.error('Error retrieving dashboard statistics:', error);
+    return res.status(500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+};
+
+/**
+ * Fetches all drivers based on filters and pagination.
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @returns {Promise<Object>} - Paginated list of drivers or error response.
+ */
+exports.fetchAllDrivers = async (req, res) => {
+  const { status, locationId, page, limit } = req.query;
+  const userLocationId = req.user.locationId;
+  try {
+    const result = await fetchAllDriversService({ status, page, limit, userLocationId, locationId });
+    return res.status(200).json(successResponse(result, "Drivers retrived successfully"));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}
+
+/**
+ * Switches the status of a user (active/inactive).
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @returns {Promise<Object>} - The updated user status or error response.
+ */
+exports.switchUserStatus = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { status } = req.body;
+    const result = await switchUserStatusService(userId, status);
+    return res.status(200).json(successResponse(result.user, result.message));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}
+
+/**
+ * Retrieves the allocated primary and spare vehicles for a specific user (driver).
+ * 
+ * @param {Object} req - Express request object containing the user's ID in `req.params.userId`.
+ * @param {Object} res - Express response object used to send the response.
+ * @returns {Promise<Object>} - A success response with allocated vehicles (primary and spare) 
+ *                               or an error response in case of failure.
+ */
+exports.getAllocatedVehicles = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const result = await getAllocatedVehiclesService(userId);
+    return res.status(200).json(successResponse(result, 'Alloted Vehicles retrieved successfully'));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}
+
+/**
+ * Exports all relevant data from the system, including users, vehicle requests, payments, and vehicles.
+ * 
+ * @param {Object} req - Express request object. This endpoint does not require any parameters in the request.
+ * @param {Object} res - Express response object used to send the response.
+ * @returns {Promise<Object>} - A success response with all exported data 
+ *                               or an error response in case of failure.
+ */
+exports.exportAllData = async (req, res) => {
+  try {
+    const data = await exportAllDataService();
+    return res.status(200).json(successResponse(data, 'Exported all data successfully'));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}

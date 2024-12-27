@@ -6,7 +6,8 @@ const Schema = mongoose.Schema;
  * KYC Request Schema
  */
 const kycRequestSchema = new Schema({
-    userID: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    locationId: { type: Schema.Types.ObjectId, ref: 'Location' },
     status: { 
         type: String, 
         enum: Object.values(KYC_STATUS), 

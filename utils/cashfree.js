@@ -8,14 +8,23 @@ const BASE_URL = process.env.CASHFREE_ENV === 'TEST'
   ? 'https://sandbox.cashfree.com/pg/orders'
   : 'https://api.cashfree.com/pg/orders';
 
-const createOrder = async (orderId, orderAmount, customerEmail) => {
+
+/**
+ * Creates a new order on the Cashfree payment gateway.
+ *
+ * @param {string} orderId - Unique identifier for the order.
+ * @param {number} orderAmount - The amount of the order in INR.
+ * @param {object} customerDetails - Customer details: name, email, phone.
+ * @returns {Promise<object>} - The newly created order.
+ * @throws {Error} - If there is an error creating the order.
+ */
+
+const createOrder = async (orderId, orderAmount, customerDetails) => {
   const orderData = {
     order_id: orderId,
     order_amount: orderAmount,
     order_currency: 'INR',
-    customer_details: {
-      customer_email: customerEmail,
-    },
+    customer_details: customerDetails,
   };
 
   try {

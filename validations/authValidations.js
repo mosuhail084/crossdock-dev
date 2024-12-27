@@ -50,7 +50,7 @@ const requestOtpSchema = Joi.object({
                 'number.min': 'Phone number must start with 91 and be 12 digits long',
                 'number.max': 'Phone number must start with 91 and be 12 digits long',
                 'any.required': 'Phone is required',
-            }),
+            })
     }).required(),
     query: Joi.any().optional(),
     files: Joi.any().optional()
@@ -127,9 +127,87 @@ const loginAdminSchema = Joi.object({
     files: Joi.any().optional()
 });
 
+/**
+ * Schema for update admin password validation
+ */
+const updatePasswordSchema = Joi.object({
+    body: Joi.object({
+        phone: Joi.number()
+            .integer()
+            .min(910000000000)
+            .max(919999999999)
+            .required()
+            .messages({
+                'number.base': 'Phone must be a number',
+                'number.integer': 'Phone must be an integer',
+                'number.min': 'Phone number must start with 91 and be 12 digits long',
+                'number.max': 'Phone number must start with 91 and be 12 digits long',
+                'any.required': 'Phone is required',
+            }),
+        password: Joi.string()
+            .min(8)
+            .required()
+            .messages({
+                'string.base': 'New password must be a string',
+                'string.min': 'New password must be at least 8 characters long',
+                'any.required': 'New password is required',
+            }),
+            otp: Joi.number()
+            .integer()
+            .min(100000)
+            .max(999999)
+            .required()
+            .messages({
+                'number.base': 'OTP must be a number',
+                'number.integer': 'OTP must be an integer',
+                'number.min': 'OTP must be exactly 6 digits',
+                'number.max': 'OTP must be exactly 6 digits',
+                'any.required': 'OTP is required',
+            }),
+    }).required(),
+    query: Joi.any().optional(),
+    files: Joi.any().optional()
+});
+
+/**
+ * Schema for verify admin otp validation
+ */
+const verifyOtpSchema = Joi.object({
+    body: Joi.object({
+        phone: Joi.number()
+            .integer()
+            .min(910000000000)
+            .max(919999999999)
+            .required()
+            .messages({
+                'number.base': 'Phone must be a number',
+                'number.integer': 'Phone must be an integer',
+                'number.min': 'Phone number must start with 91 and be 12 digits long',
+                'number.max': 'Phone number must start with 91 and be 12 digits long',
+                'any.required': 'Phone is required',
+            }),
+            otp: Joi.number()
+            .integer()
+            .min(100000)
+            .max(999999)
+            .required()
+            .messages({
+                'number.base': 'OTP must be a number',
+                'number.integer': 'OTP must be an integer',
+                'number.min': 'OTP must be exactly 6 digits',
+                'number.max': 'OTP must be exactly 6 digits',
+                'any.required': 'OTP is required',
+            }),
+    }).required(),
+    query: Joi.any().optional(),
+    files: Joi.any().optional()
+});
+
 module.exports = {
     loginDriverSchema,
     signupDriverSchema,
     requestOtpSchema,
     loginAdminSchema,
+    updatePasswordSchema,
+    verifyOtpSchema
 };

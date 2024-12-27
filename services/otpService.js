@@ -79,7 +79,7 @@ exports.requestOtp = async (phoneNumber) => {
 exports.verifyOtp = async (phoneNumber, otp) => {
     try {
         const user = await User.findOne({ phone: phoneNumber });
-        
+
         if (user && user.otp === otp && new Date() < user.otpExpiry) {
             return true;
         }
@@ -87,5 +87,66 @@ exports.verifyOtp = async (phoneNumber, otp) => {
     } catch (err) {
         console.error('Error verifying OTP:', err);
         throw err;
+    }
+};
+
+/**
+ * Service to request OTP for Admin and SuperAdmin.
+ * This function generates an OTP, sets its expiry time, and stores it in the user's record.
+ * It also sends the OTP to the user's phone number.
+ * 
+ * @param {string} phoneNumber - The phone number of the admin or superadmin.
+ * @returns {string} - The generated OTP.
+ * @throws {Error} - Throws an error if the user is not found or if there is an issue generating/sending OTP.
+ */
+exports.requestOtpforadmin = async (phoneNumber) => {
+    try {
+        const user = await User.findOne({ phone: phoneNumber, role: { $in: [ROLES.ADMIN, ROLES.SUPER_ADMIN] } });
+        const otp = generateOtp();
+        const otpExpiry = new Date(Date.now() + process.env.OTP_EXPIRY * 60000);
+        if (!user) {
+            throw new Error('Incorrect credentials or user not found');
+        } else {
+            user.otp = otp;
+            user.otpExpiry = otpExpiry;
+            await user.save();
+        }
+        await sendOtpToPhone(phoneNumber, otp);
+        return otp;
+    } catch (error) {
+        console.error('Error while generating OTP:', error);
+        throw error;
+    }
+};
+
+/**
+ * Service to verify OTP for Admin and SuperAdmin.
+ * This function checks if the OTP matches the one stored in the user's record and if the OTP is still valid (not expired).
+ * 
+ * @param {string} phone - The phone number of the admin or superadmin.
+ * @param {string} otp - The OTP entered by the user.
+ * @returns {boolean} - Returns true if OTP is valid, false otherwise.
+ * @throws {Error} - Throws an error if there is any issue verifying the OTP.
+ */
+exports.verifyOtpforadmin = async (phone, otp) => {
+    try {
+        const user = await User.findOne({ phone, role: { $in: [ROLES.ADMIN, ROLES.SUPER_ADMIN] } });
+
+        if (!user) {
+            throw new Error("Incorrect credentials or user not found");
+        }
+        const isOtpValid = user.otp === otp;
+        const isOtpExpired = new Date() > user.otpExpiry;
+
+        if (!isOtpValid) {
+            return { success: false, message: "Invalid OTP" };
+        }
+
+        if (isOtpExpired) {
+            return { success: false, message: "OTP has expired" };
+        }
+
+    } catch (error) {
+        throw new Error("Error verifying OTP: " + error.message);
     }
 };

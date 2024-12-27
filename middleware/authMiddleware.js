@@ -24,6 +24,7 @@ exports.authMiddleware = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
+      console.log(err);
       return res.status(403).json(errorResponse('Invalid or expired token'));
     }
     req.user = decoded;

@@ -10,7 +10,7 @@ const orderModel = require('../models/orderModels.js');
 const { scheduleVehicleDeactivation, disableTimer } = require('../utils/cronScheduler.js');
 const { successResponse, errorResponse } = require('../utils/responseUtils.js');
 const { ROLES, KYC_STATUS } = require('../config/constants.js');
-const { createUser, createAdmin, updatePasswordforadmin, getDashboardStats, switchUserStatusService, fetchAllDriversService, getPaymentHistoryService, getAllocatedVehiclesService, exportAllDataService } = require('../services/userService.js');
+const { createUser, createAdmin, updatePasswordforadmin, getDashboardStats, switchUserStatusService, fetchAllDriversService, getPaymentHistoryService, getAllocatedVehiclesService, exportAllDataService, deleteDriverService, exportDriversService } = require('../services/userService.js');
 const { createKycRequest } = require('../services/kycService.js');
 const { uploadToS3, clearS3Directory } = require('../helpers/s3Helper.js');
 
@@ -635,6 +635,7 @@ exports.addDriver = async (req, res) => {
       phone,
       role: ROLES.DRIVER,
       locationId: locationId,
+      isActive: true,
     });
 
     const uploadedFiles = {};
@@ -668,7 +669,7 @@ exports.addAdmin = async (req, res) => {
 
     const newAdmin = await createAdmin({ email, password, name, locationId, phone });
 
-    return res.status(201).json(successResponse('Admin added successfully', { user: newAdmin }));
+    return res.status(201).json(successResponse({ user: newAdmin }, 'Admin added successfully'));
   } catch (error) {
     console.error('Error adding driver:', error);
     return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to add Admin'));
@@ -719,10 +720,10 @@ exports.getDashboardData = async (req, res) => {
  * @returns {Promise<Object>} - Paginated list of drivers or error response.
  */
 exports.fetchAllDrivers = async (req, res) => {
-  const { status, locationId, page, limit } = req.query;
+  const { status, locationId, search, page, limit } = req.query;
   const userLocationId = req.user.locationId;
   try {
-    const result = await fetchAllDriversService({ status, page, limit, userLocationId, locationId });
+    const result = await fetchAllDriversService({ status, search, page, limit, userLocationId, locationId });
     return res.status(200).json(successResponse(result, "Drivers retrived successfully"));
   }
   catch (error) {
@@ -777,9 +778,56 @@ exports.getAllocatedVehicles = async (req, res) => {
  *                               or an error response in case of failure.
  */
 exports.exportAllData = async (req, res) => {
+  const userLocationId = req.user.locationId;
+  const { locationId } = req.query;
   try {
-    const data = await exportAllDataService();
+    const data = await exportAllDataService(userLocationId, locationId);
     return res.status(200).json(successResponse(data, 'Exported all data successfully'));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}
+
+/**
+ * Deletes a driver from the system by their driver ID.
+ * 
+ * This controller function handles the HTTP request to delete a driver, calling the `deleteDriverService` to perform the deletion logic.
+ * 
+ * @param {Object} req - The Express request object containing the driver ID in the URL parameters.
+ * @param {Object} res - The Express response object used to send the success or error response.
+ * @returns {Promise<Object>} - Returns a JSON response with the success message if the driver is deleted successfully or an error message if something fails.
+ */
+exports.deleteDriver = async (req, res) => {
+  try {
+    const {driverId} = req.params;
+    const data = await deleteDriverService(driverId);
+    return res.status(200).json(successResponse([], 'Driver deleted successfully'));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}
+
+/**
+ * Exports a list of drivers based on the user's location or a specified location.
+ * 
+ * This controller function handles the HTTP request to export driver data, calling the 
+ * `exportDriversService` to fetch and process the driver details.
+ * 
+ * @param {Object} req - The Express request object containing the following:
+ *   - `req.user.locationId`: The location ID associated with the logged-in user.
+ *   - `req.query.locationId`: (Optional) A location ID to filter drivers for a specific location.
+ * @param {Object} res - The Express response object used to send the success or error response.
+ * @returns {Promise<Object>} - Returns a JSON response containing the list of drivers and a success message, 
+ * or an error message if something fails.
+ */
+exports.exportDrivers = async (req, res) => {
+  const userLocationId = req.user.locationId;
+  const { locationId } = req.query;
+  try {
+    const data = await exportDriversService(userLocationId, locationId);
+    return res.status(200).json(successResponse(data, 'Drivers exported successfully'));
   }
   catch (error) {
     return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));

@@ -20,12 +20,14 @@ const {
   fetchAllDrivers,
   getDriverPaymentHistory,
   getAllocatedVehicles,
-  exportAllData
+  exportAllData,
+  deleteDriver,
+  exportDrivers
 } = require('../controllers/userController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { uploadFields } = require('../middleware/multer');
 const validateRequest = require('../middleware/validateRequest');
-const { addDriverSchema, addAdminSchema, updatePasswordSchema, dashboardSchema, getAllDriversSchema, switchUserStatusSchema } = require('../validations/userValidations');
+const { addDriverSchema, addAdminSchema, updatePasswordSchema, dashboardSchema, getAllDriversSchema, switchUserStatusSchema, validateDriverIdParam } = require('../validations/userValidations');
 const { checkPermission } = require('../middleware/checkPermission');
 
 const router = express.Router();
@@ -382,7 +384,7 @@ router.put('/switch-status/:id', checkPermission('SWITCH_STATUS'), validateReque
 
 /**
  * @swagger
- * /v1/get-all-drivers:
+ * /v1/user/get-all-drivers:
  *   get:
  *     summary: Fetch a paginated list of drivers with optional filters.
  *     description: |
@@ -402,6 +404,11 @@ router.put('/switch-status/:id', checkPermission('SWITCH_STATUS'), validateReque
  *           enum: [true, false]
  *         required: false
  *         description: Filter drivers by active status (`true` for active, `false` for inactive).
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Filter the records by a search term, which can match against the driver's name, or phone number.
  *       - in: query
  *         name: page
  *         schema:
@@ -468,7 +475,7 @@ router.get('/get-all-drivers', checkPermission('GET_ALL_DRIVERS'), validateReque
 
 /**
  * @swagger
- * /v1/get-payment-history/{id}:
+ * /v1/user/get-payment-history/{id}:
  *   get:
  *     summary: Fetch payment history for a specific driver.
  *     description: Retrieves a list of payment history for a driver based on the driver ID. Includes details like payment amount, transaction ID, status, and date range.
@@ -609,7 +616,7 @@ router.get('/get-payment-history/:id', checkPermission('GET_PAYMENT_HISTORY') , 
 
 /**
  * @swagger
- * /v1/get-allocated-vehicles/{userId}:
+ * /v1/user/get-allocated-vehicles/{userId}:
  *   get:
  *     summary: Retrieve allocated primary and spare vehicles for a specific driver.
  *     description: Fetches details of primary and spare vehicles allocated to a driver, including payment details and vehicle information.
@@ -811,7 +818,7 @@ router.get('/get-allocated-vehicles/:userId', checkPermission('GET_ALLOTED_VEHIC
 
 /**
  * @swagger
- * /v1/export-all:
+ * /v1/user/export-all:
  *   get:
  *     summary: Export all data.
  *     description: Fetches and exports all relevant data from the system, including users, their associated vehicle requests, payments, and vehicles.
@@ -947,5 +954,183 @@ router.get('/get-allocated-vehicles/:userId', checkPermission('GET_ALLOTED_VEHIC
  *                   example: "Internal server error."
  */
 router.get('/export-all', checkPermission('GET_EXPORTED_DATA') , exportAllData);
+
+/**
+ * @swagger
+ * /v1/user/delete-driver/{driverId}:
+ *   delete:
+ *     summary: Delete a driver by their ID.
+ *     description: Deletes a driver from the system based on the provided driver ID. If the driver is not found, an error is returned.
+ *     tags:
+ *       - Driver
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: driverId
+ *         required: true
+ *         description: The ID of the driver to delete.
+ *         schema:
+ *           type: string
+ *           example: "64f763a0a3b4f21a5a9c9d01"
+ *     responses:
+ *       200:
+ *         description: Driver successfully deleted.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Driver deleted successfully."
+ *                   data: []
+ *       400:
+ *         description: Invalid driver ID format.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid driver ID format."
+ *       404:
+ *         description: Driver not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error deleting driver: Driver not found"
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error."
+ */
+router.delete('/delete-driver/:driverId', checkPermission('DELETE_DRIVER'), deleteDriver);
+
+/**
+ * @swagger
+ * /v1/user/export-drivers:
+ *   get:
+ *     summary: Export a list of drivers.
+ *     description: Fetches a list of drivers based on the user's location or a specified location. Returns details about the drivers and their associated vehicles.
+ *     tags:
+ *       - Driver
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         required: false
+ *         description: The ID of the location to filter drivers (optional). If not provided, defaults to the user's location or "Bangalore".
+ *         schema:
+ *           type: string
+ *           example: "64f763a0a3b4f21a5a9c9d01"
+ *     responses:
+ *       200:
+ *         description: Drivers successfully exported.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Drivers exported successfully."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     drivers:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           Name of driver:
+ *                             type: string
+ *                             example: "Rishi"
+ *                           Account status:
+ *                             type: boolean
+ *                             example: true
+ *                           Contact no.:
+ *                             type: string
+ *                             example: "927639007331"
+ *                           Vehicle allotted:
+ *                             type: string
+ *                             example: "KA 8C 454456"
+ *                           Vehicle type:
+ *                             type: string
+ *                             example: "2-wheeler"
+ *                     total:
+ *                       type: integer
+ *                       example: 50
+ *                     message:
+ *                       type: string
+ *                       example: "Drivers exported successfully."
+ *       400:
+ *         description: Bad request or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid location ID."
+ *       404:
+ *         description: Location not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bangalore location not found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error."
+ */
+router.get('/export-drivers', checkPermission('GET_EXPORTED_DATA'), validateRequest(validateDriverIdParam) ,exportDrivers);
 
 module.exports = router;

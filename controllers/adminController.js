@@ -710,28 +710,6 @@ exports.getKycRequests = async (req, res) => {
   }
 };
 
-exports.disableVehicle = async (req, res) => {
-  const { vehicleNumber } = req.body;
-  const now = new Date();
-
-  try {
-    // Update the vehicle's status to 'inactive'
-    const findVehicle = await vehicleModel.findOneAndUpdate(
-      { vehicleNumber: vehicleNumber },
-      { action: 'disable' },
-      { disabledTime: now.toISOString() }
-    );
-
-    if (!findVehicle) {
-      return res.status(400).json({ message: 'No Vehicle found!' });
-    }
-
-    return res.status(200).json('Vehicle disabled!');
-  } catch (error) {
-    console.log('Error performing mutation:', error);
-    return res.status(500).json({ message: 'Server error', error });
-  }
-};
 
 exports.enableVehicle = async (req, res) => {
   const { vehicleNumber } = req.body;

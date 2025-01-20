@@ -1,7 +1,8 @@
 const { KYC_STATUS } = require('../config/constants');
 const { uploadToS3, clearS3Directory } = require('../helpers/s3Helper');
-const { createKycRequest, updateKycStatus, getKycStatusByUserID, fetchAllKycRequests, getKycDocumentsByUserId } = require('../services/kycService');
+const { createKycRequest, updateKycStatus, getKycStatusByUserID, fetchAllKycRequests, getKycDocumentsByUserId, exportAllKYCRequestsService } = require('../services/kycService');
 const { updateUserLocation } = require('../services/userService');
+const { generateJwtToken } = require('../utils/jwtUtils');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
 
 
@@ -31,7 +32,18 @@ exports.submitKycRequest = async (req, res) => {
             status: KYC_STATUS.PENDING,
         });
 
-        return res.status(201).json(successResponse('KYC request submitted successfully.', kycRequest));
+        const kycRequestWithToken = {
+            ...kycRequest.toObject(),
+            token: await generateJwtToken({
+                _id: req.user.userId,
+                phone: req.user.phone,
+                role: req.user.role,
+                name: req.user.name,
+                locationId,
+            }),
+        };
+
+        return res.status(201).json(successResponse(kycRequestWithToken, 'KYC request submitted successfully.'));
     } catch (error) {
         console.error('Error submitting KYC request:', error);
         return res.status(500).json(errorResponse('Failed to submit KYC request.', error.message));
@@ -47,8 +59,24 @@ exports.submitKycRequest = async (req, res) => {
  */
 exports.getAllKycRequests = async (req, res) => {
     try {
-        const kycRequests = await fetchAllKycRequests(req.query, req.user.locationId);
-        return res.status(200).json(successResponse({ kycRequests }, 'KYC requests retrieved successfully.'));
+        const { kycRequests, total, page, limit } = await fetchAllKycRequests(req.query, req.user.locationId);
+        return res.status(200).json(successResponse({ kycRequests, total, page, limit }, 'KYC requests retrieved successfully.'));
+    } catch (error) {
+        return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to fetch kyc requests.'));
+    }
+};
+
+/**
+ * Controller to export all KYC requests.
+ * @param {Object} req - The request object, containing the user's location ID.
+ * @param {Object} res - The response object used to send the response.
+ * @returns {Promise<Object>} - Responds with a JSON object containing KYC requests or an error message.
+ * @throws {Error} - Returns an error response if the service call fails.
+ */
+exports.exportAllKYCRequests = async (req, res) => {
+    try {
+        const result = await exportAllKYCRequestsService(req.user.locationId, req.query.locationId);
+        return res.status(200).json(successResponse(result, 'KYC requests retrieved successfully.'));
     } catch (error) {
         return res.status(error.status || 500).json(errorResponse(error.message || 'Failed to fetch kyc requests.'));
     }
@@ -82,6 +110,7 @@ exports.getUserKycDocuments = async (req, res) => {
  */
 exports.checkKycStatus = async (req, res) => {
     try {
+        console.log(req.user);
         const userId = req.user.userId;
 
         const kycRequest = await getKycStatusByUserID(userId);

@@ -26,7 +26,6 @@ router.post('/user-disable', disableUser);
 router.post('/user-enable', enableUser);
 router.post('/add-user', uploadFields,addUser);
 router.post('/createVehicle', createVehicle);
-router.post('/disable-vehicle', disableVehicle);
 router.post('/enable-vehicle', enableVehicle);
 router.get('/dashboard/:token',dashboard)
 router.get('/stats/:token', getAdminStats);

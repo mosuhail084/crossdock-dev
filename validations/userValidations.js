@@ -1,3 +1,4 @@
+const { query } = require('express');
 const Joi = require('joi');
 
 // Schema for adding a driver
@@ -150,6 +151,9 @@ exports.getAllDriversSchema = Joi.object({
         status: Joi.string().valid('true', 'false')
             .optional()
             .description('Filter drivers by their active status. "true" for active, "false" for inactive.'),
+        search: Joi.string()
+            .optional()
+            .description('Search vehicles by driver name or contact number.'),
         locationId: Joi.string()
             .optional()
             .description('Filter drivers by location ID.'),
@@ -175,13 +179,11 @@ exports.switchUserStatusSchema = Joi.object({
 });
 
 exports.validateDriverIdParam = Joi.object({
-          id: Joi.string().required()
-            .messages({
-              'string.base': 'Driver ID must be a string.',
-              'string.empty': 'Driver ID cannot be empty.',
-              'any.required': 'Driver ID is required.',
-            }).required(),
-    query: Joi.any().optional(),
+    query: Joi.object({
+        locationId: Joi.string()
+            .optional()
+            .description('Filter drivers by location ID.'),
+    }).required(),
     files: Joi.any().optional(),
-    body:  Joi.any().optional()
+    body: Joi.any().optional()
 });

@@ -114,7 +114,7 @@ exports.loginAdmin = async (req, res) => {
 
         return res.status(200).json(
             successResponse(
-                { token, user: { id: user._id, name: user.name, email: user.email, role: user.role, locationId: user.locationId } },
+                { token, user: { id: user._id, name: user.name, email: user.email, role: user.role, locationId: user.locationId?._id, locationName: user.locationId?.cityName } },
                 'Login successful'
             )
         );

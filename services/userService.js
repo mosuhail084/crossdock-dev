@@ -197,7 +197,7 @@ exports.switchUserStatusService = async (userId, status) => {
  * 
  * @throws {Error} - For database issues or missing default location.
  */
-exports.fetchAllDriversService = async ({ status, page = 1, limit = 10, userLocationId, locationId }) => {
+exports.fetchAllDriversService = async ({ status, search, page = 1, limit = 10, userLocationId, locationId }) => {
     const query = {
         role: ROLES.DRIVER
     };
@@ -209,12 +209,18 @@ exports.fetchAllDriversService = async ({ status, page = 1, limit = 10, userLoca
         }
         query.locationId = bangaloreLocation._id;
     }
-    else{
+    else {
         query.locationId = locationId || userLocationId;
     }
 
-    if (status !== undefined) {
+    if (status != undefined) {
         query.isActive = status === 'true' ? true : false;
+    }
+    if (search) {
+        query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { phone: { $regex: search, $options: 'i' } }
+        ];
     }
 
     try {
@@ -223,7 +229,7 @@ exports.fetchAllDriversService = async ({ status, page = 1, limit = 10, userLoca
         const drivers = await User.find(query)
             .skip((page - 1) * limit)
             .limit(parseInt(limit, 10))
-            .select('-otp -otpExpiry')
+            .select(' -otp -otpExpiry')
             .populate('locationId', 'cityName');
 
         const driverIds = drivers.map(driver => driver._id);
@@ -237,6 +243,7 @@ exports.fetchAllDriversService = async ({ status, page = 1, limit = 10, userLoca
                 }
             }
         ]);
+
         const vehicleRequestMap = {};
         vehicleRequests.forEach(request => {
             vehicleRequestMap[request._id.toString()] = request.latestRequest;
@@ -290,7 +297,16 @@ exports.getPaymentHistoryService = async (driverId) => {
         if (paymentHistory.length == 0) {
             throw new Error('No Payments made yet');
         }
-        return paymentHistory;
+        const totalAmount = paymentHistory.reduce((sum, request) => {
+            if (request.paymentId && request.paymentId.amount) {
+                return sum + request.paymentId.amount;
+            }
+            return sum;
+        }, 0);
+        return {
+            totalAmount,
+            paymentHistory
+        };
     } catch (error) {
         throw new Error('Error fetching payment history: ' + error.message);
     }
@@ -341,9 +357,22 @@ exports.getAllocatedVehiclesService = async (userId) => {
  * Fetch and export data grouped by users.
  * @returns {Array} - Data grouped by users.
  */
-exports.exportAllDataService = async () => {
+exports.exportAllDataService = async (userLocationId, locationId) => {
     try {
-        const users = await User.find({ role: ROLES.DRIVER }, { name: 1, phone: 1, role: 1, isActive: 1, locationId: 1 })
+        const query = {
+            role: ROLES.DRIVER
+        };
+        if (!locationId && !userLocationId) {
+            const bangaloreLocation = await Location.findOne({ cityName: 'Bangalore' });
+            if (!bangaloreLocation) {
+                throw new Error('Bangalore location not found.');
+            }
+            query.locationId = bangaloreLocation._id;
+        }
+        else {
+            query.locationId = locationId || userLocationId;
+        }
+        const users = await User.find(query, { name: 1, phone: 1, role: 1, isActive: 1, locationId: 1 })
             .populate('locationId', 'cityName');
 
         const userData = await Promise.all(
@@ -363,9 +392,124 @@ exports.exportAllDataService = async () => {
                 };
             })
         );
-
         return userData;
     } catch (error) {
         throw new Error(`Error fetching data: ${error.message}`);
+    }
+};
+
+/**
+ * Deletes a driver from the system by their driver ID.
+ * 
+ * This service checks if the driver exists, verifies their role, and deletes the driver if they exist and are a driver.
+ * 
+ * @param {ObjectId} driverId - The ID of the driver to be deleted.
+ * @returns {Promise<Object>} - Returns a success message if the driver is deleted successfully or throws an error if not found.
+ * 
+ * @throws {Error} - Throws an error if the driver is not found or if there is an issue during deletion.
+ */
+exports.deleteDriverService = async (driverId) => {
+    try {
+        const driver = await User.find({ _id: driverId, role: ROLES.DRIVER });
+        if (driver.length == 0) {
+            throw new Error('Driver not found');
+        }
+        await User.findByIdAndDelete(driverId);
+        return {
+            success: true,
+            message: 'Driver deleted successfully',
+        };
+    } catch (error) {
+        throw new Error('Error deleting driver: ' + error.message);
+    }
+};
+
+/**
+ * Exports a list of drivers for a given location.
+ * 
+ * This service retrieves drivers based on the user's location or a specified location, 
+ * along with their vehicle allocation status and other details. The results are sorted 
+ * by the creation date of the vehicle allotment, prioritizing the most recent assignments.
+ * 
+ * @param {ObjectId} userLocationId - The location ID associated with the logged-in user.
+ * @param {ObjectId} locationId - An optional location ID to filter drivers for a specific location.
+ * @returns {Promise<Object>} - Returns an object containing the list of drivers and a success message.
+ * 
+ * @throws {Error} - Throws an error if the location is not found or if there is an issue during data retrieval.
+ */
+exports.exportDriversService = async (userLocationId, locationId) => {
+    const query = {
+        role: ROLES.DRIVER
+    };
+    if (!locationId && !userLocationId) {
+        const bangaloreLocation = await Location.findOne({ cityName: 'Bangalore' });
+        if (!bangaloreLocation) {
+            throw new Error('Bangalore location not found.');
+        }
+        query.locationId = bangaloreLocation._id;
+    }
+    else {
+        query.locationId = locationId || userLocationId;
+    }
+    try {
+        const total = await User.countDocuments(query);
+        const drivers = await User.find(query)
+
+        const driverIds = drivers.map(driver => driver._id);
+        const vehicleRequests = await VehicleRequest.aggregate([
+            { $match: { driverId: { $in: driverIds }, status: VEHICLE_REQUEST_STATUSES.PROCESSED } },
+            { $sort: { updatedAt: -1 } },
+            {
+                $group: {
+                    _id: "$driverId",
+                    latestRequest: { $first: "$$ROOT" }
+                }
+            }
+        ]);
+        const vehicleRequestMap = {};
+        vehicleRequests.forEach(request => {
+            vehicleRequestMap[request._id.toString()] = request.latestRequest;
+        });
+        const driversWithVehicles = await Promise.all(
+            drivers.map(async (driver) => {
+                const vehicleRequest = vehicleRequestMap[driver._id.toString()];
+                if (vehicleRequest && vehicleRequest.vehicleId) {
+                    const vehicle = await Vehicle.findById(vehicleRequest.vehicleId).select('vehicleNumber vehicleType createdAt');
+                    if (vehicle) {
+                        return {
+                            "Name of driver": driver.name,
+                            "Account status": driver.isActive,
+                            "Contact no.": driver.phone,
+                            "Vehicle allotted": vehicle.vehicleNumber,
+                            "Vehicle type": vehicle.vehicleType,
+                            "createdAt": vehicle.createdAt
+                        };
+                    }
+                }
+                return {
+                    "Name of driver": driver.name,
+                    "Account status": driver.isActive,
+                    "Contact no.": driver.phone,
+                    "Vehicle allotted": null,
+                    "Vehicle type": null,
+                    "createdAt": null
+                };
+            })
+        );
+        const validDriversWithVehicles = driversWithVehicles.filter(Boolean);
+        validDriversWithVehicles.sort((a, b) => {
+            if (!a.createdAt && !b.createdAt) return 0;
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+        const Drivers = validDriversWithVehicles.map(({ createdAt, ...rest }) => rest);
+        return {
+            drivers: Drivers,
+            total: total,
+            message: 'Drivers exported successfully.',
+        };
+    } catch (error) {
+        throw new Error('Failed to fetch drivers: ' + error.message);
     }
 };

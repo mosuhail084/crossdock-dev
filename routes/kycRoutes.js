@@ -1,5 +1,5 @@
 const express = require('express');
-const { submitKycRequest, checkKycStatus, approveOrRejectKyc, getAllKycRequests, getUserKycDocuments } = require('../controllers/kycController');
+const { submitKycRequest, checkKycStatus, approveOrRejectKyc, getAllKycRequests, getUserKycDocuments, exportAllKYCRequests } = require('../controllers/kycController');
 const { checkPermission } = require('../middleware/checkPermission');
 const { changeKycStatusSchema, getAllKycRequestsSchema, kycSchema } = require('../validations/kycValidations');
 const validateRequest = require('../middleware/validateRequest');
@@ -56,6 +56,11 @@ router.post('/upload', checkPermission('SUBMIT_KYC'), validateRequest(kycSchema)
  *           type: string
  *           enum: [pending, approved, rejected]
  *         description: Filter KYC requests by status (pending, approved, or rejected).
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Filter the records by a search term, which can match against the driver's name, or phone number.
  *       - in: query
  *         name: locationId
  *         schema:
@@ -243,10 +248,18 @@ router.post('/update-status', checkPermission('MANAGE_KYC'), validateRequest(cha
  *               success: true
  *               message: "KYC documents retrieved successfully."
  *               data:
- *                 userPhoto: "path/to/photo.jpg"
- *                 panCard: "path/to/pan.jpg"
- *                 aadharCard: "path/to/aadhar.jpg"
- *                 driversLicense: "path/to/license.jpg"
+ *                 kycDocuments:
+ *                   _id: "67544b44b0338997d452f6d1"
+ *                   userId:
+ *                     _id: "6744c95d33e9323346df55c1"
+ *                     name: "user suhail"
+ *                   status: "approved"
+ *                   uploadedDocuments:
+ *                     userPhoto: "https://example.com/userPhoto"
+ *                     panCard: "https://example.com/panCard"
+ *                     aadharCard: "https://example.com/aadharCard"
+ *                     driversLicense: "https://example.com/driversLicense"
+ *                   dateRequested: "2024-12-07T13:19:00.074Z"
  *       '404':
  *         description: No KYC documents found for the given user.
  *         content:
@@ -270,5 +283,39 @@ router.post('/update-status', checkPermission('MANAGE_KYC'), validateRequest(cha
  *               message: "Internal server error."
  */
 router.get('/kyc-docs/:userId', checkPermission('GET_KYC_DOCS'), getUserKycDocuments);
+
+/**
+ * @swagger
+ * /v1/kyc/export-all-kyc-requests:
+ *   get:
+ *     summary: Export all KYC requests.
+ *     description: Allows an admin or super admin to retrieve all KYC requests, including driver information and associated documents.
+ *     tags:
+ *       - KYC
+ *     responses:
+ *       '200':
+ *         description: KYC requests retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "KYC requests retrieved successfully."
+ *               data:
+ *                 kycRequests:
+ *                   - Name of driver: "Mr. X"
+ *                     Contact no.: "+91-9898989898"
+ *                     PAN: "https://example.com/panCard"
+ *                     Aadhar: "https://example.com/aadharCard"
+ *                     Driver's license: "https://example.com/driversLicense"
+ *                     Driver's picture: "https://example.com/driversPicture"
+ *       '500':
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/export-all-kyc-requests', checkPermission('GET_EXPORTED_DATA'), validateRequest(getAllKycRequestsSchema), exportAllKYCRequests);
 
 module.exports = router;

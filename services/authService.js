@@ -76,7 +76,7 @@ exports.loginDriverService = async (phone, otp) => {
  * @throws {Error} - Throws error if user not found or invalid credentials.
  */
 exports.loginAdminService = async (email, password) => {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate('locationId');
     if (!user) {
         createError('User not found', 404);
     }

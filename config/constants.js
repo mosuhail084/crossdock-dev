@@ -18,6 +18,12 @@ const VEHICLE_STATUSES = {
     SPARE: 'spare',
 };
 
+const PAYMENT_STATUSES = {
+    SUCCESS: 'success',
+    PENDING: 'pending',
+    FAILED: 'failed',
+};
+
 const VEHICLE_REQUEST_STATUSES = {
     PENDING: 'pending',
     APPROVED: 'approved',
@@ -48,6 +54,7 @@ module.exports = {
     VEHICLE_TYPES,
     VEHICLE_STATUSES,
     KYC_STATUS,
+    PAYMENT_STATUSES,
     VEHICLE_RENTAL_VALUES,
     VEHICLE_REQUEST_STATUSES,
     VEHICLE_REQUEST_TYPES

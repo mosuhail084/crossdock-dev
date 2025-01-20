@@ -59,6 +59,16 @@ exports.allocateVehicleSchema = Joi.object({
     files: Joi.any().optional()
 });
 
+exports.disableVehicleSchema = Joi.object({
+    body: Joi.object({
+        rentRequestId: Joi.string().required().messages({
+            'string.empty': 'Driver ID is required',
+        }),
+    }).required(),
+    query: Joi.any().optional(),
+    files: Joi.any().optional()
+});
+
 exports.fetchInactiveVehiclesSchema = Joi.object({
     query: Joi.object({
         vehicleType: Joi.string().valid('2-wheeler', '3-wheeler (5.8)', '3-wheeler (10)', '4-wheeler')
@@ -93,6 +103,32 @@ exports.fetchVehicleRequestsSchema = Joi.object({
         requestType: Joi.string().valid('primary', 'spare')
             .optional()
             .description('Filter vehicle requests by request type. Default is both "primary and spare".'),
+        search: Joi.string()
+            .optional()
+            .description('Search vehicle requests by vehicle number or driver name or contact number.'),
+        page: Joi.number().integer().min(1).default(1)
+            .description('Page number for pagination. Default is 1.'),
+        limit: Joi.number().integer().min(1).max(100).default(10)
+            .description('Number of vehicle requests per page. Default is 10.'),
+    }).required(),
+    files: Joi.any().optional(),
+    body: Joi.any().optional()
+});
+
+exports.fetchVehicleswithuserSchema = Joi.object({
+    query: Joi.object({
+        status: Joi.string().valid('active', 'inactive')
+            .optional()
+            .description('Filter vehicle requests by status. Default is "pending".'),
+        vehicleType: Joi.string().valid('2-wheeler', '3-wheeler (5.8)', '3-wheeler (10)', '4-wheeler')
+            .optional()
+            .description('Filter vehicle requests by vehicle type.'),
+        locationId: Joi.string()
+            .optional()
+            .description('Filter vehicles by location ID.'),
+        search: Joi.string()
+            .optional()
+            .description('Search vehicles by vehicle number or driver name or contact number.'),
         page: Joi.number().integer().min(1).default(1)
             .description('Page number for pagination. Default is 1.'),
         limit: Joi.number().integer().min(1).max(100).default(10)

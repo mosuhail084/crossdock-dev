@@ -1,7 +1,7 @@
 const express = require('express');
-const { addVehicle, createRentRequestController, allocateVehicle, getInactiveVehicles, getAllVehicleRequests, deleteVehicle, editVehicle, getAllVehicles } = require('../controllers/vehicleController');
+const { addVehicle, createRentRequestController, allocateVehicle, getInactiveVehicles, getAllVehicleRequests, deleteVehicle, editVehicle, getAllVehicles, exportPrimaryVehicleRequest, exportSpareVehicleRequest,exportAllVehiclesWithUser, getAllVehiclesWithUser, requestSpareVehicle, getAllSpareVehicleRequests, allocateSpareVehicle, disableVehicle, vehicleRequestStatus } = require('../controllers/vehicleController');
 const validateRequest = require('../middleware/validateRequest.js');
-const { addVehicleSchema, createRentRequestSchema, allocateVehicleSchema, fetchInactiveVehiclesSchema, fetchVehicleRequestsSchema } = require('../validations/vehicleValidations');
+const { addVehicleSchema, createRentRequestSchema, allocateVehicleSchema, fetchInactiveVehiclesSchema, fetchVehicleRequestsSchema, fetchVehicleswithuserSchema, disableVehicleSchema } = require('../validations/vehicleValidations');
 const { checkPermission } = require('../middleware/checkPermission.js');
 
 const router = express.Router();
@@ -447,7 +447,7 @@ router.get(
 router.get(
     '/get-all-vehicles',
     checkPermission('GET_ALL_VEHICLES'),
-    validateRequest(fetchVehicleRequestsSchema),
+    validateRequest(fetchVehicleswithuserSchema),
     getAllVehicles);
 
 /**
@@ -581,5 +581,720 @@ router.delete(
     '/delete/:vehicleId',
     checkPermission('DELETE_VEHICLE'),
     deleteVehicle);
+
+/**
+ * @swagger
+ * /v1/vehicle/export-primary-vehilce-request:
+ *   get:
+ *     summary: Export primary vehicle requests.
+ *     description: Exports the vehicle requests that are in a pending status, along with the driver details (name, contact) and vehicle information (vehicle type, vehicle number).
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The optional location ID to filter vehicle requests. If not provided, defaults to the user's location.
+ *     responses:
+ *       200:
+ *         description: Primary vehicle requests data retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Primary Vehicle Requests data retrieved successfully."
+ *               data:
+ *                 - Name of driver: "John Doe"
+ *                   Contact no.: "1234567890"
+ *                   Date of request: "2024-12-28T15:30:00Z"
+ *                   Vehicle type: "3-wheeler (10)"
+ *                   Vehicle number: "KA-01-1234"
+ *                 - Name of driver: "Jane Smith"
+ *                   Contact no.: "0987654321"
+ *                   Date of request: "2024-12-28T16:00:00Z"
+ *                   Vehicle type: "2-wheeler"
+ *                   Vehicle number: "KA-02-5678"
+ *       400:
+ *         description: Invalid location ID format.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid location ID format."
+ *       404:
+ *         description: No primary vehicle requests found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No primary vehicle requests found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/export-primary-vehilce-request', checkPermission('GET_EXPORTED_DATA') , exportPrimaryVehicleRequest);
+
+/**
+ * @swagger
+ * /v1/vehicle/export-spare-vehilce-request:
+ *   get:
+ *     summary: Export spare vehicle requests.
+ *     description: Exports the spare vehicle requests that are in a pending status, along with the driver details (name, contact) and vehicle information (vehicle type, vehicle number). It also includes the primary vehicle information if available.
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The optional location ID to filter spare vehicle requests. If not provided, defaults to the user's location.
+ *     responses:
+ *       200:
+ *         description: Spare vehicle requests data retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Spare Vehicle Requests data retrieved successfully."
+ *               data:
+ *                 - Name of driver: "John Doe"
+ *                   Contact no.: "1234567890"
+ *                   Date of request: "2024-12-28T15:30:00Z"
+ *                   Vehicle type: "3-wheeler"
+ *                   Primary vehicle: "KA-01-1234"
+ *                   Spare vehicle: "KA-01-5678"
+ *                 - Name of driver: "Jane Smith"
+ *                   Contact no.: "0987654321"
+ *                   Date of request: "2024-12-28T16:00:00Z"
+ *                   Vehicle type: "2-wheeler"
+ *                   Primary vehicle: "KA-02-6789"
+ *                   Spare vehicle: "KA-02-5678"
+ *       400:
+ *         description: Invalid location ID format.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid location ID format."
+ *       404:
+ *         description: No spare vehicle requests found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No spare vehicle requests found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/export-spare-vehilce-request', checkPermission('GET_EXPORTED_DATA') , exportSpareVehicleRequest);
+
+/**
+ * @swagger
+ * /v1/vehicle/export-all-vehicles-with-users:
+ *   get:
+ *     summary: Export all allocated vehicle requests.
+ *     description: Retrieves a list of all allocated vehicle requests, including details about the vehicle, driver, allocation date, and rental information. Only vehicles that have been allocated are included.
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The optional location ID to filter vehicles. If not provided, defaults to the user's location.
+ *     responses:
+ *       200:
+ *         description: Vehicle requests retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Exported all vehicles successfully."
+ *               data:
+ *                 - Vehicle Number: "KA 8C 1234"
+ *                   Vehicle Type: "2-wheeler"
+ *                   Status: "active"
+ *                   Driver Name: "John Doe"
+ *                   Driver Contact No.: "9876543210"
+ *                   Allocation Date: "2024-06-10T08:00:00.000Z"
+ *                   Paid Till Date: "2024-06-20T08:00:00.000Z"
+ *                   Rental Value: 1500
+ *                 - Vehicle Number: "KA 9A 5678"
+ *                   Vehicle Type: "4-wheeler"
+ *                   Status: "inactive"
+ *                   Driver Name: "Jane Smith"
+ *                   Driver Contact No.: "9876549876"
+ *                   Allocation Date: "2024-06-12T08:00:00.000Z"
+ *                   Paid Till Date: "2024-06-22T08:00:00.000Z"
+ *                   Rental Value: 2000
+ *       400:
+ *         description: Invalid location ID format.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid location ID format."
+ *       404:
+ *         description: No vehicle requests found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No vehicle requests found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/export-all-vehicles-with-users', checkPermission('GET_EXPORTED_DATA') , exportAllVehiclesWithUser);
+
+/**
+ * @swagger
+ * /v1/vehicle/get-all-vehicle-with-users:
+ *   get:
+ *     summary: Retrieve all vehicles with their request details.
+ *     description: Fetches a paginated list of all vehicles with details about their allocation, driver, and rental information. If no request data is available for a vehicle, the fields will be returned as null.
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The optional location ID to filter vehicles. If not provided, defaults to the user's location.
+ *       - in: query
+ *         name: vehicleType
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The type of vehicle to filter by (e.g., "2-wheeler", "4-wheeler").
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Filter the records by a search term, which can match against the vehicle number, driver's name, or phone number.
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The status of the vehicle to filter by (e.g., "active", "inactive").
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination.
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: The number of items per page for pagination.
+ *     responses:
+ *       200:
+ *         description: Vehicles retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Vehicles retrieved successfully."
+ *               data:
+ *                 result:
+ *                   - Vehicle Number: "KA 01 AB 1234"
+ *                     Vehicle Type: "4-wheeler"
+ *                     Status: "active"
+ *                     Driver Name: "John Doe"
+ *                     Driver Contact No.: "9876543210"
+ *                     Allocation Date: "2024-06-10T08:00:00.000Z"
+ *                     Paid Till Date: "2024-06-20T08:00:00.000Z"
+ *                     Rental Value: 5000
+ *                   - Vehicle Number: "KA 02 CD 5678"
+ *                     Vehicle Type: "2-wheeler"
+ *                     Status: "inactive"
+ *                     Driver Name: null
+ *                     Driver Contact No.: null
+ *                     Allocation Date: null
+ *                     Paid Till Date: null
+ *                     Rental Value: 2000
+ *                 total: 2
+ *                 page: 1
+ *                 limit: 10
+ *                 totalPages: 1
+ *       400:
+ *         description: Invalid request parameters.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid query parameters."
+ *       404:
+ *         description: No vehicles found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No vehicles found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/get-all-vehicle-with-users', checkPermission('GET_ALL_VEHICLES_WITH_USER') ,validateRequest(fetchVehicleswithuserSchema), getAllVehiclesWithUser);
+
+/**
+ * @swagger
+ * /v1/vehicle/request-spare-vehicle:
+ *   post:
+ *     summary: Request a spare vehicle.
+ *     description: Allows a user to request a spare vehicle if they have an active vehicle request. 
+ *                  Requires the `REQUEST_SPARE_VEHICLE` permission.
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties: {}
+ *             required: []
+ *     responses:
+ *       200:
+ *         description: Spare vehicle request processed successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Spare vehicle request successful."
+ *               data:
+ *                 driverId: "675c614b8a2aa5a6541430b9"
+ *                 locationId: "676c6628e6023ca2a0c731d9"
+ *                 paymentId: "64f763a0a3b4f21a5a9c9d01"
+ *                 vehicleType: "2-wheeler"
+ *                 status: "pending"
+ *                 dateRange:
+ *                   startDate: "2024-12-20T00:00:00.000Z"
+ *                   endDate: "2025-01-05T00:00:00.000Z"
+ *                 requestType: "spare"
+ *                 _id: "6773b7523bbbbdcabdbc8e1b"
+ *                 createdAt: "2024-12-31T09:20:18.840Z"
+ *                 updatedAt: "2024-12-31T09:20:18.840Z"
+ *                 __v: 0
+ *       400:
+ *         description: Invalid request parameters.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid request parameters."
+ *       401:
+ *         description: Unauthorized. The user is not authenticated.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Authentication required."
+ *       403:
+ *         description: Forbidden. The user lacks the required `REQUEST_SPARE_VEHICLE` permission.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Permission denied."
+ *       404:
+ *         description: No active request found for the driver.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No active vehicle request found. Cannot create a spare request."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.post('/request-spare-vehicle', checkPermission('REQUEST_SPARE_VEHICLE') , requestSpareVehicle);
+
+/**
+ * @swagger
+ * /v1/vehicle/get-status:
+ *   get:
+ *     summary: Get the status of vehicle requests for the authenticated user
+ *     tags:
+ *       - Vehicle
+ *       - Mobile App
+ *     description: Retrieve the status of both primary and spare vehicle requests for the authenticated user.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Vehicle request statuses fetched successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "Vehicle request status fetched successful."
+ *               data:
+ *                 - reqType: "PRIMARY"
+ *                   status: "active"
+ *                 - reqType: "SPARE"
+ *                   status: "inactive"
+ *       400:
+ *         description: Invalid request parameters.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid request parameters."
+ *       401:
+ *         description: Unauthorized. The user is not authenticated.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Authentication required."
+ *       403:
+ *         description: Forbidden. The user lacks the required `VEHICLE_REQUEST_STATUS` permission.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Permission denied."
+ *       404:
+ *         description: No vehicle requests found for the authenticated user.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No vehicle requests found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/get-status', checkPermission('VEHICLE_REQUEST_STATUS') , vehicleRequestStatus);
+
+/**
+ * @swagger
+ * /v1/vehicle/get-all-spare-vehicle-requests:
+ *   get:
+ *     summary: Get all spare vehicle requests
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     description: Retrieve all spare vehicle requests with optional pagination and filtering by vehicle type.
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         schema:
+ *           type: string
+ *         description: The location ID to filter requests.
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Filter the records by a search term, which can match against the driver's name, or phone number.
+ *       - in: query
+ *         name: vehicleType
+ *         schema:
+ *           type: string
+ *         description: The type of vehicle to filter requests.
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: The number of records per page.
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved spare vehicle requests.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Requested for spare vehicle successful."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     spareVehicleRequests:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           spareRequest:
+ *                             type: object
+ *                             properties:
+ *                               dateRange:
+ *                                 type: object
+ *                                 properties:
+ *                                   startDate:
+ *                                     type: string
+ *                                     format: date-time
+ *                                     example: "2024-12-20T00:00:00.000Z"
+ *                                   endDate:
+ *                                     type: string
+ *                                     format: date-time
+ *                                     example: "2024-12-25T00:00:00.000Z"
+ *                               _id:
+ *                                 type: string
+ *                                 example: "67694c8c6f6726e987f96dfb"
+ *                               driverId:
+ *                                 type: object
+ *                                 properties:
+ *                                   _id:
+ *                                     type: string
+ *                                     example: "6738c8740eb6e4d984053db0"
+ *                                   name:
+ *                                     type: string
+ *                                     example: "John Doe"
+ *                                   phone:
+ *                                     type: string
+ *                                     example: "919876543210"
+ *                               locationId:
+ *                                 type: object
+ *                                 properties:
+ *                                   _id:
+ *                                     type: string
+ *                                     example: "6744950c72946d53164b3a28"
+ *                                   cityName:
+ *                                     type: string
+ *                                     example: "Bangalore"
+ *                               vehicleType:
+ *                                 type: string
+ *                                 example: "3-wheeler (10)"
+ *                               status:
+ *                                 type: string
+ *                                 example: "pending"
+ *                               requestType:
+ *                                 type: string
+ *                                 example: "spare"
+ *                               createdAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 example: "2024-12-29T11:42:04.055Z"
+ *                               updatedAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 example: "2024-12-29T11:42:04.055Z"
+ *                             required:
+ *                               - _id
+ *                               - driverId
+ *                               - locationId
+ *                               - vehicleType
+ *                               - status
+ *                               - requestType
+ *                               - createdAt
+ *                               - updatedAt
+ *                           primaryVehicle:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 example: "67389d726320a264a3920826"
+ *                               vehicleNumber:
+ *                                 type: string
+ *                                 example: "XYZ7890"
+ *                               vehicleType:
+ *                                 type: string
+ *                                 example: "3-wheeler (10)"
+ *                     total:
+ *                       type: integer
+ *                       example: 1
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *       500:
+ *         description: Internal server error.
+ */
+router.get('/get-all-spare-vehicle-requests', checkPermission('GET_ALL_SPARE_VEHICLE_REQUESTS') ,validateRequest(fetchVehicleswithuserSchema), getAllSpareVehicleRequests);
+
+/**
+ * @swagger
+ * /v1/vehicle/allocate-spare-vehicle:
+ *   post:
+ *     summary: Allocate a spare vehicle to a vehicle request
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     description: This API allocates a spare vehicle to a pending vehicle request and updates the associated primary vehicle to "under-repair".
+ *     parameters:
+ *       - in: body
+ *         name: body
+ *         required: true
+ *         description: The request body should include the requestId and spareVehicleId.
+ *         schema:
+ *           type: object
+ *           properties:
+ *             requestId:
+ *               type: string
+ *               description: The ID of the vehicle request to which the spare vehicle is being allocated.
+ *               example: "67694c8c6f6726e987f96dfb"
+ *             spareVehicleId:
+ *               type: string
+ *               description: The ID of the spare vehicle being allocated.
+ *               example: "67389d726320a264a3920826"
+ *     responses:
+ *       200:
+ *         description: Successfully allocated the spare vehicle to the vehicle request.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Spare Vehicle Allocated successfully."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     dateRange:
+ *                       type: object
+ *                       properties:
+ *                         startDate:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-12-20T00:00:00.000Z"
+ *                         endDate:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-12-25T00:00:00.000Z"
+ *                     _id:
+ *                       type: string
+ *                       example: "67694c8c6f6726e987f96dfb"
+ *                     driverId:
+ *                       type: string
+ *                       example: "6738c8740eb6e4d984053db0"
+ *                     locationId:
+ *                       type: string
+ *                       example: "6744950c72946d53164b3a28"
+ *                     vehicleType:
+ *                       type: string
+ *                       example: "3-wheeler (10)"
+ *                     status:
+ *                       type: string
+ *                       example: "processed"
+ *                     requestType:
+ *                       type: string
+ *                       example: "spare"
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-12-29T11:42:04.055Z"
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-12-31T14:25:21.974Z"
+ *                     vehicleId:
+ *                       type: string
+ *                       example: "67389d726320a264a3920826"
+ *       500:
+ *         description: Internal server error.
+ */
+router.post('/allocate-spare-vehicle', checkPermission('ALLOCATE_SPARE_VEHICLE'), allocateSpareVehicle);
+
+/**
+ * @swagger
+ * /v1/vehicle/disable-vehicle:
+ *   post:
+ *     summary: Disable a vehicle from the system.
+ *     description: Disables a vehicle by its ID. Only authorized users can access this endpoint.
+ *     tags:
+ *       - Vehicle
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               rentRequestId:
+ *                 type: string
+ *                 required: true
+ *                 example: "67389d726320a264a3920826"
+ *     responses:
+ *       200:
+ *         description: Successfully disabled the vehicle.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicle disabled successfully."
+ *       404:
+ *         description: Vehicle not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicle not found."
+ *       500:
+ *         description: Internal server error.
+ */
+router.post('/disable-vehicle', checkPermission('DISABLE_VEHICLE'), validateRequest(disableVehicleSchema), disableVehicle);
 
 module.exports = router;

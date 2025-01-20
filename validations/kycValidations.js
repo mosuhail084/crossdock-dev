@@ -46,6 +46,9 @@ const getAllKycRequestsSchema = Joi.object({
             'string.pattern.base': 'Invalid Location ID format',
             })
             .description('Filter KYC requests by location ID'),
+        search: Joi.string()
+            .optional()
+            .description('Filter KYC requests by user name or phone number.'),
         page: Joi.number()
             .integer()
             .min(1)

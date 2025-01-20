@@ -278,20 +278,10 @@ exports.getAllPaymentsService = async (userLocationId, locationId, search, start
  * @param {Date} [paymentAt] - The date and time when the payment was made.
  * @returns {Promise<Payment>} - The created or updated payment record.
  */
-exports.createOrUpdatePaymentRecord = async (
-    locationId,
-    driverId,
-    orderId,
-    status,
-    cfOrderId,
-    transactionId,
-    amount,
-    vehicleId,
-    paymentAt
-) => {
+exports.createOrUpdatePaymentRecord = async (locationId, driverId, orderId, status, cfOrderId, transactionId, amount, vehicleId, paymentAt) => {
     const filter = { orderId };
     const paymentData = {
-        locationId,
+        locationId: new mongoose.Types.ObjectId(locationId),
         driverId,
         orderId,
         status,

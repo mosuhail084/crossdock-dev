@@ -990,3 +990,48 @@ exports.allocateSpareVehicleService = async (requestId, VehicleId) => {
 
     return vehicleRequest;
 };
+
+/**
+ * Updates the order ID associated with a vehicle request.
+ * 
+ * @param {string} vehicleRequestId - The ID of the vehicle request.
+ * @param {string} orderId - The ID of the order to be associated with the vehicle request.
+ * 
+ * @returns {Promise<void>} - Resolves when the operation is complete.
+ * 
+ * @throws {Error} - Throws an error if the operation fails.
+ */
+exports.updateOrderId = async (vehicleRequestId, orderId) => {
+    try {
+        const vehicleRequest = await VehicleRequest.findByIdAndUpdate(vehicleRequestId, {
+            orderId,
+        }, {
+            new: true,
+            runValidators: true,
+        });
+        if (!vehicleRequest) {
+            throw new Error('Vehicle request not found.');
+        }
+    } catch (error) {
+        throw new Error('Failed to update order ID for vehicle request: ' + error.message);
+    }
+};
+
+/**
+ * Retrieves a vehicle request by its order ID.
+ * 
+ * @param {string} orderId - The ID of the order associated with the vehicle request.
+ * @returns {Promise<Object>} - The vehicle request object.
+ * @throws {Error} - If the vehicle request is not found or an error occurs during the retrieval.
+ */
+exports.getVehicleRequestByOrderId = async (orderId) => {
+    try {
+        const vehicleRequest = await VehicleRequest.findOne({ orderId });
+        if (!vehicleRequest) {
+            throw new Error('Vehicle request not found for the given order ID.');
+        }
+        return vehicleRequest;
+    } catch (error) {
+        throw new Error('Error retrieving vehicle request: ' + error.message);
+    }
+};

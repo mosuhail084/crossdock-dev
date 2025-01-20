@@ -32,6 +32,9 @@ const vehicleRequestSchema = new Schema({
     disabledAt: {
         type: Date
     },
+    orderId: {
+        type: String
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('VehicleRequest', vehicleRequestSchema);

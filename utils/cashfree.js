@@ -59,10 +59,8 @@ const createOrder = async (orderId, orderAmount, customerDetails, customFields) 
  */
 const getPaymentStatus = async (orderId) => {
   try {
-    console.log('Fetching payment status for order ID:', orderId);
     const response = await Cashfree.PGOrderFetchPayments("2023-08-01", orderId);
-    console.log('Payment status response:',response);
-    const payments = response?.data?.payments || [];
+    const payments = response?.data || [];
     if (!Array.isArray(payments) || payments.length === 0) {
       throw new Error("No payment transactions found for the provided order ID.");
     }
@@ -83,10 +81,10 @@ const getPaymentStatus = async (orderId) => {
     return {
       status: orderStatus,
       cfOrderId: lastTransaction.order_id,
-      transactionId: lastTransaction.payment_id,
+      transactionId: lastTransaction.cf_payment_id,
       amount: lastTransaction.order_amount,
-      orderMeta: lastTransaction.order_meta,
-      orderTags: lastTransaction.order_tags,
+      // orderMeta: lastTransaction.order_meta,
+      // orderTags: lastTransaction.order_tags,
       paymentAt: lastTransaction.payment_time,
     };
   } catch (error) {

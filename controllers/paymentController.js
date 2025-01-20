@@ -1,5 +1,5 @@
 const { VEHICLE_REQUEST_STATUSES, PAYMENT_STATUSES, VEHICLE_STATUSES } = require("../config/constants");
-const { updateVehicleRequestStatus } = require("../services/vehicleService");
+const { updateVehicleRequestStatus, updateOrderId, updateVehicleStatus, getVehicleRequestByOrderId } = require("../services/vehicleService");
 const { createOrder, getPaymentStatus } = require("../utils/cashfree");
 const { successResponse, errorResponse } = require("../utils/responseUtils");
 const { exportAllPaymentsService, getAllPaymentsService, createOrUpdatePaymentRecord } = require('../services/paymentService');
@@ -31,6 +31,8 @@ exports.createPaymentOrder = async (req, res) => {
 
     try {
         const orderResponse = await createOrder(orderId, orderAmount, customerDetails, customFields);
+        await updateOrderId(vehicleRequestId, orderId);
+
         res.json(successResponse(orderResponse, 'Order created successfully!'));
     } catch (error) {
         res.status(500).json(errorResponse(error.message));
@@ -105,27 +107,28 @@ exports.verifyPayment = async (req, res) => {
 
     try {
         const paymentDetails = await getPaymentStatus(orderId);
-        console.log(paymentDetails);
-        const { status, cfOrderId, transactionId, amount, orderMeta, orderTags, paymentAt } = paymentDetails;
-
-        const paymentRecord = await createOrUpdatePaymentRecord({
-            locationId: req.user.locationId,
-            driverId: req.user._id,
+        const vehicleRequest = await getVehicleRequestByOrderId(orderId);
+        
+        const { status, cfOrderId, transactionId, amount, paymentAt } = paymentDetails;
+        
+        const paymentRecord = await createOrUpdatePaymentRecord(
+            req.user.locationId,
+            req.user.userId,
             orderId,
             status,
             cfOrderId,
             transactionId,
             amount,
-            vehicleId: orderTags.vehicle_id,
+            vehicleRequest.vehicleId,
             paymentAt
-        });
+        );
 
         if (status === PAYMENT_STATUSES.SUCCESS) {
-            await updateVehicleRequestStatus(orderTags.vehicleRequestId, VEHICLE_REQUEST_STATUSES.PROCESSED, paymentRecord._id);
-            await updateVehicleStatus(orderTags.vehicle_id, VEHICLE_STATUSES.ACTIVE);
+            await updateVehicleRequestStatus(vehicleRequest._id, VEHICLE_REQUEST_STATUSES.PROCESSED, paymentRecord._id);
+            await updateVehicleStatus(vehicleRequest.vehicleId, VEHICLE_STATUSES.ACTIVE);
         }
 
-        req.json(successResponse({ status, amount }, 'Payment verified successfully'));
+        return res.status(200).json(successResponse({ status, amount }, 'Payment verified successfully'));
     } catch (error) {
         console.error('Error verifying payment:', error.response ? error.response.data : error.message);
         res.status(500).json({

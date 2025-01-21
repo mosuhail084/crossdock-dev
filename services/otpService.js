@@ -46,7 +46,7 @@ exports.requestOtp = async (phoneNumber) => {
     try {
         const user = await User.findOne({ phone: phoneNumber, role: ROLES.DRIVER });
 
-        const otp = generateOtp();
+        const otp = process.env.NODE_ENV === 'TEST' ? '123456' : generateOtp();
         const otpExpiry = new Date(Date.now() + process.env.OTP_EXPIRY * 60000);
 
         if (!user) {

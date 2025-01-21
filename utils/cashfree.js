@@ -7,7 +7,7 @@ const { PAYMENT_STATUSES } = require('../config/constants');
 
 Cashfree.XClientId = process.env.CASHFREE_API_KEY;
 Cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY;
-Cashfree.XEnvironment = process.env.CASHFREE_ENV === 'TEST'
+Cashfree.XEnvironment = process.env.NODE_ENV === 'TEST'
   ? Cashfree.Environment.SANDBOX
   : Cashfree.Environment.PRODUCTION;
 

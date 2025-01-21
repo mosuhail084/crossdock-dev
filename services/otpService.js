@@ -31,6 +31,7 @@ const sendOtpToPhone = async (to, otp) => {
         const response = await axios.request(options);
         console.log('OTP sent successfully:', response.data);
     } catch (error) {
+        console.log(error);
         console.error('Error sending OTP:', error.response ? error.response.data : error.message);
         throw new Error('Failed to send OTP');
     }

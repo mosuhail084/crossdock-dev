@@ -1,6 +1,6 @@
 const { VEHICLE_REQUEST_TYPES } = require('../config/constants');
 const vehicleRequestModel = require('../models/vehicleRequestModel');
-const { addVehicleService, createRentRequest, allocateVehicleToRequest, fetchInactiveVehicles, fetchVehicleRequests, deleteVehicleService, editVehicleService, fetchAllVehicles, exportPrimaryVehicleRequestService, exportSpareVehicleRequestService, exportAllVehiclesWithUserService, getAllVehiclesWithUserService, requestSpareVehicleService, getAllSpareVehicleRequestsService, allocateSpareVehicleService, vehicleRequestStatusService } = require('../services/vehicleService');
+const { addVehicleService, createRentRequest, allocateVehicleToRequest, fetchInactiveVehicles, fetchVehicleRequests, deleteVehicleService, editVehicleService, fetchAllVehicles, exportPrimaryVehicleRequestService, exportSpareVehicleRequestService, exportAllVehiclesWithUserService, getAllVehiclesWithUserService, requestSpareVehicleService, getAllSpareVehicleRequestsService, allocateSpareVehicleService, vehicleRequestStatusService, exportAllVehiclesService } = require('../services/vehicleService');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
 
 /**
@@ -374,5 +374,35 @@ exports.disableVehicle = async (req, res) => {
     } catch (error) {
         console.log('Error performing mutation:', error);
         return res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+/**
+ * Controller to export all vehicles.
+ * 
+ * This function retrieves a list of all vehicles available at a specific location. 
+ * If no location filter is provided, the user's location is used as the default. 
+ * The function interacts with the exportAllVehiclesService to fetch and format the data.
+ * 
+ * @param {Object} req - The Express request object containing:
+ *   - `req.user.locationId` - The authenticated user's location ID.
+ *   - `req.query.locationId` - (Optional) The location ID provided as a query parameter.
+ * @param {Object} res - The Express response object used to send the response or an error.
+ * 
+ * @returns {Object} - JSON response containing the list of vehicles or an error message.
+ *   - Success: Returns an HTTP 200 status code with the formatted vehicle data and a success message.
+ *   - Failure: Returns an appropriate HTTP status code with an error message.
+ * 
+ * @throws {Error} - Returns a 500 status code if the service fails to fetch the vehicles 
+ * or an error object with a specific status code if provided.
+ */
+exports.exportAllVehicles = async (req, res) => {
+    const userLocationId = req.user.locationId;
+    const locationId = req.query.locationId;
+    try {
+        const result = await exportAllVehiclesService(userLocationId, locationId);
+        return res.status(200).json(successResponse(result.formattedData, 'All Vehicles exported successfully.'));
+    } catch (error) {
+        return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
     }
 };

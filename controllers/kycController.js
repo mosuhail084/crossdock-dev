@@ -19,10 +19,10 @@ exports.submitKycRequest = async (req, res) => {
         const locationId = req.body.locationId;
         const uploadedFiles = {};
 
-        await clearS3Directory(userPhone);
+        await clearS3Directory(userId);
 
         for (let file of req.files) {
-            const uploadResult = await uploadToS3(file, userPhone);
+            const uploadResult = await uploadToS3(file, userId);
             uploadedFiles[file.fieldname] = uploadResult;
         }
         const kycRequest = await createKycRequest({

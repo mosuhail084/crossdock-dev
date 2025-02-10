@@ -809,7 +809,7 @@ exports.vehicleRequestStatusService = async (userId) => {
 
         // Group by requestType and get the latest request for each type
         const requestMap = vehicleRequests.reduce((acc, request) => {
-            if (!acc[request.requestType] || 
+            if (!acc[request.requestType] ||
                 new Date(request.updatedAt) > new Date(acc[request.requestType].updatedAt)) {
                 acc[request.requestType] = request;
             }
@@ -1033,5 +1033,55 @@ exports.getVehicleRequestByOrderId = async (orderId) => {
         return vehicleRequest;
     } catch (error) {
         throw new Error('Error retrieving vehicle request: ' + error.message);
+    }
+};
+
+/**
+ * Service to export all vehicles.
+ * 
+ * This service retrieves vehicles based on location filters. If no location is provided, it defaults 
+ * to the user's location or Bangalore. The data is formatted to include vehicle type, number, and location.
+ * 
+ * @param {string} userLocationId - The ID of the user's location (optional).
+ * @param {string} locationId - The ID of the location to filter vehicles (optional).
+ * 
+ * @returns {Object} - Contains an array of formatted vehicle data with fields:
+ *   - `Vehicle Type`: Type of the vehicle (e.g., car, bike).
+ *   - `Vehicle no.`: Registration number of the vehicle.
+ *   - `location`: Name of the location.
+ * 
+ * @throws {Error} - Throws an error if vehicles cannot be fetched or the Bangalore location is not found.
+ */
+exports.exportAllVehiclesService = async (userLocationId, locationId) => {
+    const query = {};
+    if (!locationId && !userLocationId) {
+        const bangaloreLocation = await Location.findOne({ cityName: 'Bangalore' });
+        if (!bangaloreLocation) {
+            throw new Error('Bangalore location not found.');
+        }
+        query.locationId = bangaloreLocation._id;
+    } else {
+        if (locationId) {
+            query.locationId = locationId;
+        } else {
+            query.locationId = userLocationId;
+        }
+    }
+    try {
+        const vehicles = await Vehicle.find(query)
+            .populate('locationId', 'cityName');
+        
+        if (!vehicles || vehicles.length === 0) {
+            throw new Error('No vehicles found.');
+        }
+        const formattedData = vehicles.map((vehicle => ({
+            "Vehicle Type": vehicle.vehicleType,
+            "Vehicle no.": vehicle.vehicleNumber,
+            "location": vehicle.locationId.cityName
+        })));
+
+        return { formattedData };
+    } catch (error) {
+        throw new Error('Failed to fetch vehicles: ' + error.message);
     }
 };

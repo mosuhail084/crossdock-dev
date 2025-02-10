@@ -1,5 +1,5 @@
 const express = require('express');
-const { addVehicle, createRentRequestController, allocateVehicle, getInactiveVehicles, getAllVehicleRequests, deleteVehicle, editVehicle, getAllVehicles, exportPrimaryVehicleRequest, exportSpareVehicleRequest,exportAllVehiclesWithUser, getAllVehiclesWithUser, requestSpareVehicle, getAllSpareVehicleRequests, allocateSpareVehicle, disableVehicle, vehicleRequestStatus } = require('../controllers/vehicleController');
+const { addVehicle, createRentRequestController, allocateVehicle, getInactiveVehicles, getAllVehicleRequests, deleteVehicle, editVehicle, getAllVehicles, exportPrimaryVehicleRequest, exportSpareVehicleRequest,exportAllVehiclesWithUser, getAllVehiclesWithUser, requestSpareVehicle, getAllSpareVehicleRequests, allocateSpareVehicle, disableVehicle, vehicleRequestStatus, exportAllVehicles } = require('../controllers/vehicleController');
 const validateRequest = require('../middleware/validateRequest.js');
 const { addVehicleSchema, createRentRequestSchema, allocateVehicleSchema, fetchInactiveVehiclesSchema, fetchVehicleRequestsSchema, fetchVehicleswithuserSchema, disableVehicleSchema } = require('../validations/vehicleValidations');
 const { checkPermission } = require('../middleware/checkPermission.js');
@@ -1296,5 +1296,60 @@ router.post('/allocate-spare-vehicle', checkPermission('ALLOCATE_SPARE_VEHICLE')
  *         description: Internal server error.
  */
 router.post('/disable-vehicle', checkPermission('DISABLE_VEHICLE'), validateRequest(disableVehicleSchema), disableVehicle);
+
+/**
+ * @swagger
+ * /v1/vehicle/export-all-vehicles:
+ *   get:
+ *     summary: Export all vehicles.
+ *     description: Retrieves a list of all vehicles based on the user's location or an optional location filter. Only vehicles available in the specified or default location are included.
+ *     tags:
+ *       - Vehicle
+ *       - Web App
+ *     parameters:
+ *       - in: query
+ *         name: locationId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: The optional location ID to filter vehicles. If not provided, defaults to the user's location or Bangalore.
+ *     responses:
+ *       200:
+ *         description: Vehicles retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "All Vehicles exported successfully."
+ *               data:
+ *                 - Vehicle Type: "Car"
+ *                   Vehicle no.: "KA-01-1234"
+ *                   location: "Bangalore"
+ *                 - Vehicle Type: "Bike"
+ *                   Vehicle no.: "MH-02-5678"
+ *                   location: "Mumbai"
+ *       400:
+ *         description: Invalid location ID format.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Invalid location ID format."
+ *       404:
+ *         description: No vehicles found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No vehicles found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Internal server error."
+ */
+router.get('/export-all-vehicles',checkPermission('GET_EXPORTED_DATA'),exportAllVehicles);
 
 module.exports = router;

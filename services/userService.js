@@ -308,6 +308,7 @@ exports.getPaymentHistoryService = async (driverId) => {
             paymentHistory
         };
     } catch (error) {
+        console.log(error);
         throw new Error('Error fetching payment history: ' + error.message);
     }
 };
@@ -511,5 +512,33 @@ exports.exportDriversService = async (userLocationId, locationId) => {
         };
     } catch (error) {
         throw new Error('Failed to fetch drivers: ' + error.message);
+    }
+};
+
+/**
+ * Updates a driver's details.
+ * 
+ * This service updates a driver's name, contact number.
+ * 
+ * @param {ObjectId} driverId - The ID of the driver to be updated.
+ * @param {Object} data - The object containing the updated details of the driver.
+ * @param {string} data.name - The updated name of the driver.
+ * @param {string} data.phone - The updated contact number of the driver.
+ * 
+ * @returns {Promise<Object>} - Returns the updated driver object.
+ * 
+ * @throws {Error} - Throws an error if the driver is not found or if there is an issue during the update operation.
+ */
+exports.updateDriverService = async (driverId, data) => {
+    try {
+        const driver = await User.findOneAndUpdate(
+            { _id: driverId, role: ROLES.DRIVER },
+            { $set: { name: data.name, phone: data.phone } },
+            { new: true, runValidators: true }
+        );
+        if (!driver) throw new Error('Driver not found');
+        return driver;
+    } catch (error) {
+        throw new Error('Failed to update driver: ' + error.message);
     }
 };

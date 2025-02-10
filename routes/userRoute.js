@@ -22,12 +22,13 @@ const {
   getAllocatedVehicles,
   exportAllData,
   deleteDriver,
-  exportDrivers
+  exportDrivers,
+  updateDriver
 } = require('../controllers/userController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { uploadFields } = require('../middleware/multer');
 const validateRequest = require('../middleware/validateRequest');
-const { addDriverSchema, addAdminSchema, updatePasswordSchema, dashboardSchema, getAllDriversSchema, switchUserStatusSchema, validateDriverIdParam } = require('../validations/userValidations');
+const { addDriverSchema, addAdminSchema, updatePasswordSchema, dashboardSchema, getAllDriversSchema, switchUserStatusSchema, validateDriverIdParam, updateDriverSchema } = require('../validations/userValidations');
 const { checkPermission } = require('../middleware/checkPermission');
 
 const router = express.Router();
@@ -1029,6 +1030,8 @@ router.get('/export-all', checkPermission('GET_EXPORTED_DATA') , exportAllData);
  *                   example: "Internal server error."
  */
 router.delete('/delete-driver/:driverId', checkPermission('DELETE_DRIVER'), deleteDriver);
+
+router.post('/update-driver/:driverId', checkPermission('UPDATE_DRIVER'), validateRequest(updateDriverSchema), updateDriver);
 
 /**
  * @swagger

@@ -201,3 +201,22 @@ exports.updateKycStatus = async (kycRequestId, status) => {
         { new: true }
     );
 };
+
+
+/**
+ * Updates the uploaded documents for a KYC request by userId.
+ * @param {string} userId - The ID of the user whose KYC request will be updated.
+ * @param {Object} documents - The updated documents to be uploaded to S3.
+ * @returns {Promise<Object>} - Updated KYC request.
+ */
+exports.updateKycDocuments = async (userId, documents) => {
+    const updateObject = {};
+    for (const [key, value] of Object.entries(documents)) {
+        updateObject[`uploadedDocuments.${key}`] = value;
+    }
+    return await KycRequest.findOneAndUpdate(
+        { userId },
+        { $set: updateObject },
+        { new: true }
+    );
+};

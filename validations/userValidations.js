@@ -187,3 +187,28 @@ exports.validateDriverIdParam = Joi.object({
     files: Joi.any().optional(),
     body: Joi.any().optional()
 });
+
+exports.updateDriverSchema = Joi.object({
+    body: Joi.object({
+        name: Joi.string()
+            .min(2)
+            .max(100)
+            .optional(),
+        phone: Joi.string()
+            .custom((value, helper) => {
+                // Convert phone string to a number
+                const phoneNumber = parseInt(value, 10);
+                if (isNaN(phoneNumber)) {
+                    return helper.message('Phone must be a valid number');
+                }
+                return phoneNumber;  // Return the converted number
+            })
+            .optional(),
+    }).optional(),
+    files: Joi.any().custom((value, helpers) => {
+
+        return value;
+    }).optional(),
+    query: Joi.any().optional()
+});
+

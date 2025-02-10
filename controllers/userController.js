@@ -10,8 +10,8 @@ const orderModel = require('../models/orderModels.js');
 const { scheduleVehicleDeactivation, disableTimer } = require('../utils/cronScheduler.js');
 const { successResponse, errorResponse } = require('../utils/responseUtils.js');
 const { ROLES, KYC_STATUS } = require('../config/constants.js');
-const { createUser, createAdmin, updatePasswordforadmin, getDashboardStats, switchUserStatusService, fetchAllDriversService, getPaymentHistoryService, getAllocatedVehiclesService, exportAllDataService, deleteDriverService, exportDriversService } = require('../services/userService.js');
-const { createKycRequest } = require('../services/kycService.js');
+const { createUser, createAdmin, updatePasswordforadmin, getDashboardStats, switchUserStatusService, fetchAllDriversService, getPaymentHistoryService, getAllocatedVehiclesService, exportAllDataService, deleteDriverService, exportDriversService, updateDriverService } = require('../services/userService.js');
+const { createKycRequest, updateKycDocuments } = require('../services/kycService.js');
 const { uploadToS3, clearS3Directory } = require('../helpers/s3Helper.js');
 
 
@@ -641,7 +641,7 @@ exports.addDriver = async (req, res) => {
     const uploadedFiles = {};
 
     for (let file of req.files) {
-      const uploadResult = await uploadToS3(file, phone);
+      const uploadResult = await uploadToS3(file, driver._id);
       uploadedFiles[file.fieldname] = uploadResult;
     }
 
@@ -828,6 +828,33 @@ exports.exportDrivers = async (req, res) => {
   try {
     const data = await exportDriversService(userLocationId, locationId);
     return res.status(200).json(successResponse(data, 'Drivers exported successfully'));
+  }
+  catch (error) {
+    return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));
+  }
+}
+
+/**
+ * Updates a driver's details.
+ * 
+ * This controller function handles the HTTP request to update a driver's details, 
+ * calling the `updateDriverService` to perform the update logic.
+ * 
+ * @param {Object} req - The Express request object containing the driver ID in the URL parameters and updated details in the request body.
+ * @param {Object} res - The Express response object used to send the success or error response.
+ * @returns {Promise<Object>} - Returns a JSON response with the success message if the driver is updated successfully or an error message if something fails.
+ */
+exports.updateDriver = async (req, res) => {
+  try {
+    const {driverId} = req.params;
+    const driver = await updateDriverService(driverId, req.body);
+    const uploadedFiles = {};
+    for (let file of req.files) {
+      const uploadResult = await uploadToS3(file, driverId);
+      uploadedFiles[file.fieldname] = uploadResult;
+    }
+    const kycRequest = await updateKycDocuments(driverId, uploadedFiles);
+    return res.status(200).json(successResponse ({driver, kycRequest}, 'Driver updated successfully'));
   }
   catch (error) {
     return res.status(error.status || 500).json(errorResponse(error.message || 'Internal server error.'));

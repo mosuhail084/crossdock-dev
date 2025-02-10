@@ -5,11 +5,11 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 /**
  * Deletes all objects in a directory (prefix) in S3.
- * @param {string} userPhone - The phone number of the user, used as the directory name in S3.
+ * @param {string} userId - The ID of the user, used as the directory name in S3.
  * @returns {Promise<void>} - Resolves when the directory and its contents are deleted.
  */
-const clearS3Directory = async (userPhone) => {
-    const prefix = `${userPhone}/`; // The directory to delete
+const clearS3Directory = async (userId) => {
+    const prefix = `${userId}/`; // The directory to delete
 
     try {
         // List all objects in the directory
@@ -43,13 +43,13 @@ const clearS3Directory = async (userPhone) => {
 /**
  * Uploads a file to S3 using the AWS SDK.
  * @param {Object} file - The file object from multer, containing the file buffer and MIME type.
- * @param {string} userPhone - The phone number of the user, used to create the S3 file path.
+ * @param {string} userId - The ID of the user, used to create the S3 file path.
  * @returns {Promise<Object>} - A promise that resolves with the result of the S3 upload (e.g. the ETag and other metadata).
  */
-const uploadToS3 = async (file, userPhone) => {
+const uploadToS3 = async (file, userId) => {
     const params = {
         Bucket: process.env.BUCKET_NAME,
-        Key: `${userPhone}/${file.fieldname}`,
+        Key: `${userId}/${file.fieldname}`,
         Body: file.buffer,
         ContentType: file.mimetype,
     };
